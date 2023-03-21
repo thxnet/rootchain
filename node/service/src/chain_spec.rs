@@ -362,6 +362,7 @@ fn polkadot_staging_testnet_config_genesis(wasm_binary: &[u8]) -> polkadot::Gene
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		},
+		sudo: polkadot::SudoConfig { key: Some(get_account_id_from_seed::<sr25519::Public>("Alice")) },
 		phragmen_election: Default::default(),
 		democracy: Default::default(),
 		council: polkadot::CouncilConfig { members: vec![], phantom: Default::default() },
@@ -1355,6 +1356,7 @@ pub fn polkadot_testnet_genesis(
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		},
+		sudo: polkadot::SudoConfig { key: Some(_root_key) },
 		phragmen_election: Default::default(),
 		democracy: polkadot::DemocracyConfig::default(),
 		council: polkadot::CouncilConfig { members: vec![], phantom: Default::default() },

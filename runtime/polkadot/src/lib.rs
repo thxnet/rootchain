@@ -24,6 +24,7 @@ use pallet_transaction_payment::CurrencyAdapter;
 use runtime_common::{
 	auctions, claims, crowdloan, impl_runtime_weights, impls::DealWithFees, paras_registrar,
 	prod_or_fast, slots, BlockHashCount, BlockLength, CurrencyToVote, SlowAdjustingFeeUpdate,
+	paras_sudo_wrapper,
 };
 
 use runtime_parachains::{
@@ -100,6 +101,13 @@ mod weights;
 mod bag_thresholds;
 
 pub mod xcm_config;
+
+impl paras_sudo_wrapper::Config for Runtime {}
+
+impl pallet_sudo::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+}
 
 impl_runtime_weights!(polkadot_runtime_constants);
 
@@ -1559,6 +1567,10 @@ construct_runtime! {
 
 		// Pallet for sending XCM.
 		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config} = 99,
+
+		// Sudo.
+		ParasSudoWrapper: paras_sudo_wrapper::{Pallet, Call} = 250,
+		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,
 	}
 }
 

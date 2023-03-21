@@ -68,6 +68,7 @@ pallet-staking-reward-curve = { git = "https://github.com/paritytech/substrate",
 pallet-staking-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false , branch = "polkadot-v0.9.40" }
 frame-system = {git = "https://github.com/paritytech/substrate", default-features = false , branch = "polkadot-v0.9.40" }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false , branch = "polkadot-v0.9.40" }
+pallet-sudo = { git = "https://github.com/paritytech/substrate", default-features = false , branch = "polkadot-v0.9.40" }
 polkadot-runtime-constants = { package = "polkadot-runtime-constants", path = "./constants", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false , branch = "polkadot-v0.9.40" }
 pallet-tips = { git = "https://github.com/paritytech/substrate", default-features = false , branch = "polkadot-v0.9.40" }
@@ -157,6 +158,7 @@ std = [
 	"pallet-session/std",
 	"pallet-staking/std",
 	"pallet-staking-runtime-api/std",
+	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-treasury/std",
 	"pallet-tips/std",
@@ -257,6 +259,7 @@ try-runtime = [
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-staking/try-runtime",
+	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-treasury/try-runtime",
 	"pallet-tips/try-runtime",
