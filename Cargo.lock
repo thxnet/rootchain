@@ -5150,6 +5150,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-asset-tx-payment"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.40#ba87188cce8c0a11c9542d7363cd5ddd46db2740"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-transaction-payment",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-assets"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.40#ba87188cce8c0a11c9542d7363cd5ddd46db2740"
@@ -6594,6 +6612,8 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "futures",
  "kusama-runtime",
+ "pallet-asset-tx-payment",
+ "pallet-assets",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "polkadot-core-primitives",
@@ -7429,6 +7449,8 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal",
  "log",
+ "pallet-asset-tx-payment",
+ "pallet-assets",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",

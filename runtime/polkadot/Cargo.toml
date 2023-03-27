@@ -95,6 +95,9 @@ xcm = { package = "xcm", path = "../../xcm", default-features = false }
 xcm-executor = { package = "xcm-executor", path = "../../xcm/xcm-executor", default-features = false }
 xcm-builder = { package = "xcm-builder", path = "../../xcm/xcm-builder", default-features = false }
 
+pallet-assets = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true , branch = "polkadot-v0.9.40" }
+pallet-asset-tx-payment = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true , branch = "polkadot-v0.9.40" }
+
 [dev-dependencies]
 hex-literal = "0.3.4"
 tiny-keccak = { version = "2.0.2", features = ["keccak"] }
@@ -185,6 +188,8 @@ std = [
 	"xcm/std",
 	"xcm-executor/std",
 	"xcm-builder/std",
+	"pallet-asset-tx-payment/std",
+	"pallet-assets/std",
 ]
 runtime-benchmarks = [
 	"runtime-common/runtime-benchmarks",
@@ -228,6 +233,7 @@ runtime-benchmarks = [
 	"xcm-builder/runtime-benchmarks",
 	"frame-election-provider-support/runtime-benchmarks",
 	"runtime-parachains/runtime-benchmarks",
+	"pallet-assets/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-executive/try-runtime",
@@ -267,6 +273,8 @@ try-runtime = [
 	"pallet-vesting/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-xcm/try-runtime",
+	"pallet-assets/try-runtime",
+	"pallet-asset-tx-payment/try-runtime",
 ]
 # When enabled, the runtime API will not be build.
 #

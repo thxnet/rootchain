@@ -49,6 +49,9 @@ polkadot-primitives = { path = "../../primitives" }
 polkadot-node-core-parachains-inherent = { path = "../core/parachains-inherent" }
 polkadot-runtime-common = { path = "../../runtime/common" }
 
+pallet-assets = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40" }
+pallet-asset-tx-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40" }
+
 [features]
 default = ["polkadot"]
 polkadot = ["polkadot-runtime"]

@@ -144,6 +144,7 @@ impl BenchmarkCallSigner<polkadot_runtime::RuntimeCall, sp_core::sr25519::Pair>
 	) -> OpaqueExtrinsic {
 		use polkadot_runtime as runtime;
 
+		let tip = 0;
 		let extra: runtime::SignedExtra = (
 			frame_system::CheckNonZeroSender::<runtime::Runtime>::new(),
 			frame_system::CheckSpecVersion::<runtime::Runtime>::new(),
@@ -154,7 +155,7 @@ impl BenchmarkCallSigner<polkadot_runtime::RuntimeCall, sp_core::sr25519::Pair>
 			),
 			frame_system::CheckNonce::<runtime::Runtime>::from(nonce),
 			frame_system::CheckWeight::<runtime::Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<runtime::Runtime>::from(0),
+			pallet_asset_tx_payment::ChargeAssetTxPayment::<runtime::Runtime>::from(tip, None),
 			polkadot_runtime_common::claims::PrevalidateAttests::<runtime::Runtime>::new(),
 		);
 

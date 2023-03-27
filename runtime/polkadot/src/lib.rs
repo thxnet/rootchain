@@ -42,8 +42,8 @@ use frame_election_provider_support::{generate_solution_type, onchain, Sequentia
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		ConstU32, EitherOf, EitherOfDiverse, InstanceFilter, KeyOwnerProofSystem, LockIdentifier,
-		PrivilegeCmp, WithdrawReasons,
+		ConstU32, ConstU128, EitherOf, EitherOfDiverse, InstanceFilter, KeyOwnerProofSystem, LockIdentifier,
+		PrivilegeCmp, WithdrawReasons, AsEnsureOriginWithArg,
 	},
 	weights::ConstantMultiplier,
 	PalletId, RuntimeDebug,
@@ -101,6 +101,14 @@ mod weights;
 mod bag_thresholds;
 
 pub mod xcm_config;
+
+/// Runtime API definition for assets.
+pub mod assets_api;
+
+/// Implementations of some helper traits passed into runtime modules as associated types.
+pub mod impls;
+#[cfg(not(feature = "runtime-benchmarks"))]
+use impls::CreditToBlockAuthor;
 
 impl paras_sudo_wrapper::Config for Runtime {}
 
@@ -320,6 +328,15 @@ impl pallet_transaction_payment::Config for Runtime {
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
+}
+
+impl pallet_asset_tx_payment::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Fungibles = Assets;
+	type OnChargeAssetTransaction = pallet_asset_tx_payment::FungiblesAdapter<
+		pallet_assets::BalanceToAssetBalance<Balances, Runtime, ConvertInto>,
+		CreditToBlockAuthor,
+	>;
 }
 
 parameter_types! {
@@ -998,7 +1015,7 @@ where
 			)),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			pallet_asset_tx_payment::ChargeAssetTxPayment::<Runtime>::from(tip, None),
 			claims::PrevalidateAttests::<Runtime>::new(),
 		);
 		let raw_payload = SignedPayload::new(call, extra)
@@ -1084,6 +1101,37 @@ impl pallet_multisig::Config for Runtime {
 	type DepositFactor = DepositFactor;
 	type MaxSignatories = MaxSignatories;
 	type WeightInfo = weights::pallet_multisig::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub const AssetDeposit: Balance = 100 * DOLLARS;
+	pub const ApprovalDeposit: Balance = 1 * DOLLARS;
+	pub const StringLimit: u32 = 50;
+	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
+	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
+}
+
+impl pallet_assets::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = u128;
+	type AssetId = u32;
+	type AssetIdParameter = parity_scale_codec::Compact<u32>;
+	type Currency = Balances;
+	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<AccountId>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = ConstU128<DOLLARS>;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = StringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type CallbackHandle = ();
+	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+	type RemoveItemsLimit = ConstU32<1000>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 parameter_types! {
@@ -1203,7 +1251,8 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::Auctions(..) | // Specifically omitting the entire XCM Pallet
 				RuntimeCall::VoterList(..) |
 				RuntimeCall::NominationPools(..) |
-				RuntimeCall::FastUnstake(..)
+				RuntimeCall::FastUnstake(..) |
+				RuntimeCall::Assets(..)
 			),
 			ProxyType::Governance =>
 				matches!(
@@ -1487,6 +1536,8 @@ construct_runtime! {
 		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 4,
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 32,
+		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 131,
+		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 132,
 
 		// Consensus support.
 		// Authorship must be before session in order to note author in the correct session and era
@@ -1593,7 +1644,7 @@ pub type SignedExtra = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	pallet_asset_tx_payment::ChargeAssetTxPayment<Runtime>,
 	claims::PrevalidateAttests<Runtime>,
 );
 
@@ -1653,6 +1704,7 @@ mod benches {
 		[runtime_parachains::paras_inherent, ParaInherent]
 		[runtime_parachains::ump, Ump]
 		// Substrate
+		[pallet_assets, Assets]
 		[pallet_bags_list, VoterList]
 		[pallet_balances, Balances]
 		[frame_benchmarking::baseline, Baseline::<Runtime>]
@@ -2040,6 +2092,18 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
+	impl assets_api::AssetsApi<
+		Block,
+		AccountId,
+		Balance,
+		u32,
+	> for Runtime
+	{
+		fn account_balances(account: AccountId) -> Vec<(u32, Balance)> {
+			Assets::account_balances(account)
+		}
+	}
+
 	impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
 		Block,
 		Balance,
@@ -2233,7 +2297,7 @@ mod test_fees {
 			frame_system::CheckMortality::<Runtime>::from(generic::Era::immortal()),
 			frame_system::CheckNonce::<Runtime>::from(1),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0),
+			pallet_asset_tx_payment::ChargeAssetTxPayment::<Runtime>::from(tip, None),
 			claims::PrevalidateAttests::<Runtime>::new(),
 		);
 		let uxt = UncheckedExtrinsic {
