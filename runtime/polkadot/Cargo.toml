@@ -97,6 +97,8 @@ xcm-builder = { package = "xcm-builder", path = "../../xcm/xcm-builder", default
 
 pallet-assets = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true , branch = "polkadot-v0.9.40" }
 pallet-asset-tx-payment = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true , branch = "polkadot-v0.9.40" }
+pallet-nfts = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true , branch = "polkadot-v0.9.40" }
+pallet-nfts-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true , branch = "polkadot-v0.9.40" }
 
 [dev-dependencies]
 hex-literal = "0.3.4"
@@ -190,6 +192,8 @@ std = [
 	"xcm-builder/std",
 	"pallet-asset-tx-payment/std",
 	"pallet-assets/std",
+	"pallet-nfts/std",
+	"pallet-nfts-runtime-api/std",
 ]
 runtime-benchmarks = [
 	"runtime-common/runtime-benchmarks",
@@ -234,6 +238,7 @@ runtime-benchmarks = [
 	"frame-election-provider-support/runtime-benchmarks",
 	"runtime-parachains/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
+	"pallet-nfts/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-executive/try-runtime",
@@ -275,6 +280,7 @@ try-runtime = [
 	"pallet-xcm/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-asset-tx-payment/try-runtime",
+	"pallet-nfts/try-runtime",
 ]
 # When enabled, the runtime API will not be build.
 #
