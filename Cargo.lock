@@ -7466,6 +7466,7 @@ dependencies = [
 name = "polkadot-runtime"
 version = "0.9.40"
 dependencies = [
+ "array-bytes",
  "bitvec",
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -7618,6 +7619,7 @@ dependencies = [
 name = "polkadot-runtime-constants"
 version = "0.9.40"
 dependencies = [
+ "array-bytes",
  "frame-support",
  "polkadot-primitives",
  "polkadot-runtime-common",

@@ -24,9 +24,6 @@ pub use self::currency::DOLLARS;
 pub mod currency {
 	use primitives::Balance;
 
-	/// The existential deposit.
-	pub const EXISTENTIAL_DEPOSIT: Balance = 100 * CENTS;
-
 	pub const UNITS: Balance = 10_000_000_000;
 	pub const DOLLARS: Balance = UNITS; // 10_000_000_000
 	pub const CENTS: Balance = DOLLARS / 100; // 100_000_000
@@ -60,7 +57,7 @@ pub mod time {
 
 /// Fee-related.
 pub mod fee {
-	use crate::weights::ExtrinsicBaseWeight;
+	use crate::currency::*;
 	use frame_support::weights::{
 		WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	};
@@ -68,35 +65,28 @@ pub mod fee {
 	use smallvec::smallvec;
 	pub use sp_runtime::Perbill;
 
+	pub const INDEX_DEPOSIT: Balance = 0 * DOLLARS;
+	pub const EXISTENTIAL_DEPOSIT: Balance = DOLLARS / 1000;
+	pub const TRANSACTION_BYTE_FEE: Balance = 0u128;
+	pub const OPERATIONAL_FEE_MULTIPLIER: u8 = 0u8;
+
 	/// The block saturation level. Fees will be updates based on this value.
 	pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
 
-	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
-	/// node's balance type.
-	///
-	/// This should typically create a mapping between the following ranges:
-	///   - [0, `MAXIMUM_BLOCK_WEIGHT`]
-	///   - [Balance::min, Balance::max]
-	///
-	/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
-	///   - Setting it to `0` will essentially disable the weight fee.
-	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
 	pub struct WeightToFee;
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-			// in Polkadot, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT:
-			let p = super::currency::CENTS;
-			let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
 				negative: false,
-				coeff_frac: Perbill::from_rational(p % q, q),
-				coeff_integer: p / q,
+				coeff_frac: Perbill::from_percent(0),
+				coeff_integer:0,
 			}]
 		}
 	}
 }
+
 
 /// XCM protocol related constants.
 pub mod xcm {
@@ -107,6 +97,48 @@ pub mod xcm {
 		const ROOT_INDEX: u32 = 0;
 		// The bodies corresponding to the Polkadot OpenGov Origins.
 		pub const FELLOWSHIP_ADMIN_INDEX: u32 = 1;
+	}
+}
+
+/// Staking related.
+pub mod staking {
+	use primitives::AccountId;
+	pub fn get_root_id() -> AccountId {
+		if cfg!(feature = "testnet") {
+			array_bytes::hex_n_into_unchecked(
+				// 5GL2teb1jKjHgenowY4Y6EQvHkpRHJUpQCYVBDAXk4SADAib
+				"bca1b0834cf3b7b0d9258e7a61e5169b16aabfd9233685bfaa8d15c8726b566f",
+			)
+		} else if cfg!(feature = "thxnet") {
+			array_bytes::hex_n_into_unchecked(
+				// 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+				"d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
+			)
+		} else {
+			array_bytes::hex_n_into_unchecked(
+				// 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+				"d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
+			)
+		}
+	}
+
+	pub fn get_reward_id() -> AccountId {
+		if cfg!(feature = "testnet") {
+			array_bytes::hex_n_into_unchecked(
+				// 5D22dYGvG7ucZZBvFJRQQwKfSKK7LtuiUTshtC3UAukQz7RD
+				"2a31b1e8908eb70be0a2688991189bdf4dda1732a43bd73d1ed6482d40343839",
+			)
+		} else if cfg!(feature = "thxnet") {
+			array_bytes::hex_n_into_unchecked(
+				// 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+				"d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
+			)
+		} else {
+			array_bytes::hex_n_into_unchecked(
+				// 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+				"d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
+			)
+		}
 	}
 }
 

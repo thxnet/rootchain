@@ -44,9 +44,8 @@ use frame_support::{
 	traits::{
 		ConstU32, ConstU128, EitherOf, EitherOfDiverse, InstanceFilter, KeyOwnerProofSystem, LockIdentifier,
 		PrivilegeCmp, WithdrawReasons, AsEnsureOriginWithArg,
-		tokens::nonfungibles_v2::Inspect,
+		tokens::nonfungibles_v2::Inspect, Currency, OnUnbalanced, tokens::ExistenceRequirement,
 	},
-	weights::ConstantMultiplier,
 	PalletId, RuntimeDebug,
 };
 use frame_system::{EnsureRoot, EnsureWithSuccess, EnsureSigned};
@@ -96,7 +95,7 @@ pub use sp_runtime::BuildStorage;
 use pallet_nfts::PalletFeatures;
 
 /// Constant values used within the runtime.
-use polkadot_runtime_constants::{currency::*, fee::*, time::*};
+use polkadot_runtime_constants::{currency::*, fee::*, time::*, staking};
 
 // Weights used in the runtime.
 mod weights;
@@ -288,7 +287,7 @@ impl pallet_babe::Config for Runtime {
 }
 
 parameter_types! {
-	pub const IndexDeposit: Balance = 10 * DOLLARS;
+	pub const IndexDeposit: Balance = INDEX_DEPOSIT;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -318,10 +317,10 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
+	pub const TransactionByteFee: Balance = TRANSACTION_BYTE_FEE;
 	/// This value increases the priority of `Operational` transactions by adding
 	/// a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
-	pub const OperationalFeeMultiplier: u8 = 5;
+	pub const OperationalFeeMultiplier: u8 = OPERATIONAL_FEE_MULTIPLIER;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -329,8 +328,22 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees<Runtime>>;
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 	type WeightToFee = WeightToFee;
-	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
+	type LengthToFee = WeightToFee;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
+}
+
+type PositiveImbalance = <Balances as Currency<AccountId>>::PositiveImbalance;
+
+pub struct RewardAccount;
+impl OnUnbalanced<PositiveImbalance> for RewardAccount {
+	fn on_nonzero_unbalanced(amount: PositiveImbalance) {
+		Balances::settle(
+			& staking::get_reward_id(),
+			amount,
+			WithdrawReasons::FEE,
+			ExistenceRequirement::KeepAlive
+		).ok();
+	}
 }
 
 impl pallet_asset_tx_payment::Config for Runtime {
@@ -548,15 +561,15 @@ parameter_types! {
 	// Six sessions in an era (24 hours).
 	pub const SessionsPerEra: SessionIndex = prod_or_fast!(6, 1);
 
-	// 28 eras for unbonding (28 days).
+	// 2 eras for unbonding (2 days).
 	pub BondingDuration: sp_staking::EraIndex = prod_or_fast!(
-		28,
-		28,
+		2,
+		2,
 		"DOT_BONDING_DURATION"
 	);
 	pub SlashDeferDuration: sp_staking::EraIndex = prod_or_fast!(
-		27,
-		27,
+		2,
+		2,
 		"DOT_SLASH_DEFER_DURATION"
 	);
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
@@ -605,10 +618,10 @@ impl pallet_staking::Config for Runtime {
 	type CurrencyBalance = Balance;
 	type UnixTime = Timestamp;
 	type CurrencyToVote = CurrencyToVote;
-	type RewardRemainder = Treasury;
+	type RewardRemainder = ();
 	type RuntimeEvent = RuntimeEvent;
-	type Slash = Treasury;
-	type Reward = ();
+	type Slash = ();
+	type Reward = RewardAccount;
 	type SessionsPerEra = SessionsPerEra;
 	type BondingDuration = BondingDuration;
 	type SlashDeferDuration = SlashDeferDuration;
@@ -842,7 +855,7 @@ parameter_types! {
 	pub const ProposalBondMinimum: Balance = 100 * DOLLARS;
 	pub const ProposalBondMaximum: Balance = 500 * DOLLARS;
 	pub const SpendPeriod: BlockNumber = 24 * DAYS;
-	pub const Burn: Permill = Permill::from_percent(1);
+	pub const Burn: Permill = Permill::from_percent(100);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 
 	pub const TipCountdown: BlockNumber = 1 * DAYS;
