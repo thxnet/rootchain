@@ -129,8 +129,8 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 /// Runtime version (Polkadot).
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("polkadot"),
-	impl_name: create_runtime_str!("parity-polkadot"),
+	spec_name: create_runtime_str!("thxnet"),
+	impl_name: create_runtime_str!("thxlab"),
 	authoring_version: 0,
 	spec_version: 9400,
 	impl_version: 0,
