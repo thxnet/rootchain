@@ -64,6 +64,8 @@ try-runtime = ["service/try-runtime", "try-runtime-cli/try-runtime"]
 fast-runtime = ["service/fast-runtime"]
 pyroscope = ["pyro"]
 hostperfcheck = ["polkadot-performance-test"]
+testnet = ["service/testnet"]
+thxnet = ["service/thxnet"]
 
 # Configure the native runtimes to use. Polkadot is enabled by default.
 #

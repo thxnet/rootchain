@@ -209,3 +209,7 @@ runtime-metrics = [
 	"polkadot-runtime?/runtime-metrics",
 	"polkadot-runtime-parachains/runtime-metrics"
 ]
+
+testnet = [ "polkadot-runtime?/testnet" ]
+
+thxnet = [ "polkadot-runtime?/thxnet" ]
