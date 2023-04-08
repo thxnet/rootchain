@@ -1275,7 +1275,7 @@ pub fn polkadot_staging_testnet_config() -> Result<PolkadotChainSpec, String> {
 	Ok(PolkadotChainSpec::from_genesis(
 		"THXNET. Testnet",
 		"thxnet_testnet",
-		ChainType::Live,
+		ChainType::Local,
 		move || polkadot_staging_testnet_config_genesis(wasm_binary),
 		boot_nodes,
 		None,
