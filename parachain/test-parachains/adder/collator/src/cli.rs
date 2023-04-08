@@ -64,7 +64,7 @@ pub struct Cli {
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Parity Polkadot".into()
+		"THXLAB THXNET.".into()
 	}
 
 	fn impl_version() -> String {
