@@ -2,12 +2,20 @@
 set -e
 
 
-if [[ $# = 1 && $1 = *[[:digit:]]* ]];
-then
-	SEEDS=$(seq 1 $@)
-else
-	SEEDS=$@
-fi
+SEEDS=(
+	"Aro"
+	"Noel"
+	"Terry"
+	"Edgard"
+	"Wz"
+	"Jenny"
+	"Satoshi"
+	"Ryohei"
+	"Guvanch"
+	"Atabek"
+	"Sam"
+	"Rosan"
+)
 
 generate_account_id() {
 	subkey inspect ${3:-} ${4:-} "$SECRET//$1//$2" | grep "Account ID" | awk '{ print $3 }'
@@ -42,8 +50,7 @@ generate_address_and_account_id() {
 
 AUTHORITIES=""
 
-for i in $SEEDS; do
-	AUTHORITIES+="// $i\n"
+for i in ${SEEDS[@]}; do
 	AUTHORITIES+="(\n"
 	AUTHORITIES+="$(generate_address_and_account_id $i stash)\n"
 	AUTHORITIES+="$(generate_address_and_account_id $i controller)\n"

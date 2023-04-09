@@ -317,129 +317,148 @@ fn polkadot_staging_testnet_config_genesis(wasm_binary: &[u8]) -> polkadot::Gene
 		AssignmentId,
 		AuthorityDiscoveryId,
 	)> = vec![
-		// 1
 		(
-			// 5GBhyjJRZ5kzfq97cPcnxJtFnnpcJ6Q8Q4wkUgJ3A1jNEJ8q
-			hex!["b6480fbd53b0563756a36122d40f051ce6c510cefd41197ce954119e25a6f44f"].into(),
-			// 5GE2GYsRdHsvYAFwoLcnBnk4nm1TsHngXfhChSGvvN3SkEoY
-			hex!["b80c1f36b8d51e5e97ee642d923dfde919ab5969aeafb000641fc3faa560d748"].into(),
-			// 5CrFuPn2Nro625isWiZKoGqFhYnbiMPstLS4jAs8ReH34Hp6
-			hex!["22bdec45fa533b4d3495e9bcbdcc61f172207cdc263acf732edd9623ea4cc113"]
+			// 5CkwmRM4iQwtdcsJKCfkRiU6tw5Yib1PC6cChdETwCPJsBrB
+			hex!["1eb0a3c82b6e651e19bf56cb20e151007457d633d73af54b2444cd315650a842"].into(),
+			// 5F1GDwGkKSKpnCvsNzFheuryGoLdbxrXhBifLRQynT3b2PyA
+			hex!["8214acba5b2943cf4e7d0b245f4e6798028a8214d83e9f25008961a30b603132"].into(),
+			// 5HGxRsCHrs7sygUafTFFnCuAYsyQsRd9cGqLfrRKuJNFYGEm
+			hex!["e6852ac65bf2c673dbca3e211a1956a118d5aea433c53dae1078b2a83feef803"]
 				.unchecked_into(),
-			// 5GRQysEwRfLxmLWN6saMCQTVxkVh8mosCrwDE4t6FCtLz2U6
-			hex!["c0bc472a34ffca44275e95237fc6dba328f8826291cd5375cd72c5f4c1444f68"]
+			// 5DRg6LS63WrZUj6EgyzRvbqsMHJDfjpT3vqf4JZGyJ2ggoVE
+			hex!["3c3a729484ca64c217c1223475b8d71d8c963ae22878fc0c1d553543d9278e72"]
 				.unchecked_into(),
-			// 5FFYBJVJuRXcEB64PtvXLSpbTZevMyRTkCUzcjPy6EjWP7DY
-			hex!["8cf7d17ba5ac3fee86f0866d3515f31f4af3755f67792f6381143eae9a792101"]
+			// 5F7JXKSrULgfWjA8As9eWEPjKdJsXjb944JQ9LQueYUEqVYT
+			hex!["86afe37bd7f5f9c7211e87fb4d6fa581c71954b073fad0afd3e4770979e87f45"]
 				.unchecked_into(),
-			// 5GnccoDgSVEeJoxJ5sc9NS3gXWUe5beWQbwHhvTGL1WSr5u5
-			hex!["d0e79aae5c89212d742f41202a28136c1280f3d18818d42a9e930dd719761d5d"]
+			// 5FRL91hAWCweUsWav2by8CgqP5GMqv1pAqLG3sF41ijLN6jE
+			hex!["946fbe6ce7eeae65030b5af0e2765d208dc69092de041617da0bbb5aceab8163"]
 				.unchecked_into(),
-			// 5D8HPSyuv8RbEifZrhuzMQP7zELbdqn7TQ7y7ApCanvkcMxe
-			hex!["2ef6d8125cc69d3a7c26e36e681c60cd04bdc167abd3bbd7d4101ff2543c9e7c"]
+			// 5Hpr4uiqheHV74EvKv7swLVS43uRaxfMEKb6F7Gb5JbSHvbD
+			hex!["fed79b1dd5b4ff816280e4dcba4dabd70d26e0fb0c032b3ff868692dbd0b425d"]
 				.unchecked_into(),
-			// 5Dek6oPsPErg47UEMQQcUt71S71ZzNLS2GZQbceHM21NQvoP
-			hex!["46322148b8f5f5c122f3707e8892f73f0c8a7ab5c1d1e2bb7b280e7c822e4139"]
+			// 5HVuHc5RrfPvNoacXbaCuAJxmEofecBsorxSFxB5efoFeyWd
+			hex!["f064c76c87d89cdaefed25300948a17819796644217db5616ea54a69594aec39"]
 				.unchecked_into(),
 		),
-		// 2
 		(
-			// 5DaWozPaVCwTiQUixznRWJWfg2rCq9mrHceCUyDfiUAAtXmZ
-			hex!["42f8692be17acdfafd6119b65e8cc84eaa2e30e1ae755ed45c1cc87925cc615d"].into(),
-			// 5EAE95xyfp5qoPPHSb2NgjX8DqJt2AHWbdemgYLzFYuUucvL
-			hex!["5caea2c42e419788bdc375f77a86cb274173ed5ee784e0cdcda438af0d9af436"].into(),
-			// 5GrvoHFBME7jHJQWAkHpz6xvQ6AjHMiRfzskPFyReRuGSwH2
-			hex!["d431c9a59eaa037fa2a8ea5c15110131858f32d90f56c34ff795e12b2309c12a"]
+			// 5EqkNPVSs7fodEU4ySTzwWaGJdqo29BpQcjUo3boLTZJsCjV
+			hex!["7ad2f7b6ad65c37f90940ef8bb1bbac9af5f1d6c12854dc049f6faf39c585c77"].into(),
+			// 5HRRErCwzXLx7DMm2pR4eA7dhgw3fW7ytQ4MWXawgSnmReaW
+			hex!["ecf96189411463e3ddf1b5fc9022d4d3929e78a9c51fe8c0904cf99c0d4ba847"].into(),
+			// 5DM6MwXneqrYQmqxhqCBRHXDasvkwSwa7saKA6tbKLWD4UuF
+			hex!["38bbeadfb243f7e2b609bb24a6eff5e6042850781bb1bdebdc65187b2d4a3e1d"]
 				.unchecked_into(),
-			// 5GLoC45VT39Emw4QgiFQ7iJLdBWCqbo5QWsBgxBksQE9GKxf
-			hex!["bd36d11f92b5bd79f3c3d9866257f89dda667c709168dd5106b5455116c03b67"]
+			// 5DmLUaMya6zfV2VMu1HFZNgJDYWDCTGxCqCsA7Xfb41z7jkM
+			hex!["4b39520aaf1043f932f986788ea401024e7e27196233f81a7c3e802d3f60df0f"]
 				.unchecked_into(),
-			// 5CS7HKDyfCmC3woskZ4jpXtyLUBLyeW1Hn5cBJBK4SnQaJB7
-			hex!["10530244451a03a4a5dcf347260539f3e87486e078fe0cc15b0a1305946cf16d"]
+			// 5HgD7vpb3EHhjMgJ7wd9Z8ST5d2Mdj2dY9cYd1cU7B2R25dA
+			hex!["f84143ca44d116ddb40e54c5d49fe82448d76f0d32a3fd1053c807a102dc8b3a"]
 				.unchecked_into(),
-			// 5GH8mb3gzMq27UVRoPt4bDV9UZkAbkZ92AEmgh9cZEpZC6x3
-			hex!["ba6bbdc3ec119f2214ccc382cd5737a2a4e6104bf4a5e6d38855642f9f7dac05"]
+			// 5E2LvDQYFEKdbEDeUE8FYs2YW9MfxKmgv2C9QyLtzQ2qNKut
+			hex!["56ab7d568c8ffec76e2de459b6f598619d07f26b592b8fc478b16193d8275366"]
 				.unchecked_into(),
-			// 5GiwUrrH8CNQ558MUZmAZeB18Y8AUSN7uxKcm3skYEesq3hR
-			hex!["ce1a1f22b3ab1b0ffe89dc7f3390c4d7a5f74bab84d6a243fee9c4318cd08f29"]
+			// 5DfZir5hkFdLUMQdzc5cZFTjTBG95FZv5dKE5BeHBYu6vKMp
+			hex!["46d270303707ed6d15ed00af25769920c17caeaed8938dbea3e5be615c30e364"]
 				.unchecked_into(),
-			// 5Co43xKV97dAAT6FX28wArVr1CVjz3MPUtF6ZNJM4Cf6rabv
-			hex!["204c49bb123a0e032c5df3146ba6696c12f658afdf0be25ae15846ea82d74f43"]
+			// 5DZU8CU8AoEGKMReGnhKprxkLGpiqmRnpA5RZ6ZsU2983fLK
+			hex!["422c1f92029bf1202ce9d0612c678462ec4ca82d568f3ce62dc8ca15e0d96277"]
 				.unchecked_into(),
 		),
-		// 3
 		(
-			// 5EHoqEggMMgb3xhtLbuweyYrmWA9tjrARQNeAZiffYBpMGNu
-			hex!["6276c597f9954cba5217b2468e33a26e65b86ec933e85f0f526bae708e728112"].into(),
-			// 5ECTgrwvrrfWrb4J15Cc1DaZFcHCmahnZmoCispeheea3e3K
-			hex!["5e62bb960261e2c16ffe672acbfdd8778c6f7cf095e18f6416f5d106c53d932e"].into(),
-			// 5HeNSXpweDw8Nof3A6jaqKFU9P2mzuwYBA9RR7CMN2o4UbnR
-			hex!["f6da26834c6c1985f7789940c4ff272cd69403f1d3cdcd386f865229cc95d17e"]
+			// 5FcHt7sPwQcJBSwCpcVVxYaHJjPpr8dCZgNQPyhaL4TMJpn7
+			hex!["9ccbd8a5fec38fd48cc9c2b20713ae096c3da5239b6ce90c16b8141d5cc3961b"].into(),
+			// 5Csw8Q1mUtDDmUBe253RYeF22FRuUvCzzMx1GL4NFSp4A2xc
+			hex!["240535741850f9f47d712ffa20bcd74a53daf6e89d51df923064776602291a2b"].into(),
+			// 5EA8WYJph49LzDguVaCSUgRDc67Saajkru6mhpakAKoMBJCf
+			hex!["5c9baee6188926c848b4d402fc3d73b3fe165434f1b07f239ab30c82b841096f"]
 				.unchecked_into(),
-			// 5CedyemYq63SVib8z7GxHKMApMq1qLiVM7XEGi6ZA5B5D9Aw
-			hex!["19e148aa935ed76b132ba38b42afe484a3dfd0f872a02a3834f676a0c074ed22"]
+			// 5GJzPdpUak8APiv7K1E32Bnx7PYFk8YEe7Q7bDH7mwX6mJk3
+			hex!["bbd6070f8491206c3f28d96673e14df32ee83d523c363d2eb8fd23682171e1cc"]
 				.unchecked_into(),
-			// 5HQvBbguk3ZMmBuzcmH5Ddtkyv6ExrnizARaXv5ZqYjM7WZn
-			hex!["ec9791d4afe0abed4f039378d11dca2c58c4546a241359d8433529656a3dc51d"]
+			// 5EJLdDcd2NKYyqq8T9EcQrmfrU2fCxRi56PWvpBr3d11RKNW
+			hex!["62de6dfaa82b302d246868d17eb91f82d92665e3f93dee5ea7100d747e30e279"]
 				.unchecked_into(),
-			// 5F1YTbB69xNAqiEt6xCHECqLCTJP9TKsC1dM3u96hva39LQw
-			hex!["824b53f56d51d4fc08a493b99cfebfa2116121865f746dcceb9ed8232722596e"]
+			// 5FjwbQTsrwCNLGrThaAjnGvouB1QvcfyEFgPvWjPJsFN58ng
+			hex!["a2a18371537968250062aba938fa0162fd2f22cf7b364127e48a164035327857"]
 				.unchecked_into(),
-			// 5DPEeWzPoysngzYaYAct5FUMjN9cgW9qJy5tdcwLAaUyWcnB
-			hex!["3a5e4d014fd797c18b0ea04349cb2448eb2bd8bded658775d80c65271bf23935"]
+			// 5DUbUYph6YxNRzEB74JZt6VjfMa2T8pvxrXd3BRa31QbRVqu
+			hex!["3e74a43d6967109acd5fefbca47e2b2e70db6086d498fe431c9002bcfa659d19"]
 				.unchecked_into(),
-			// 5Enns2Q5UBUFffeQYdMrt6hJYDFN9h83H6YTjreAfVm1AYK5
-			hex!["7891a0458da4debae4a7902fa265dd71639f48f43754737a9be32c9c86035624"]
+			// 5EqiMmUi7VeLPok9eX4j8VkaC9pmmegBAN7RfWVBFhjpjkGo
+			hex!["7acc32f14055684dd6342f847cc337a7a0f4a5b4f1d34a156cb5aac021d73743"]
 				.unchecked_into(),
 		),
-		// 4
 		(
-			// 5DbuAUyg6zJQZiDjuSgwxKvoqzTiYrT6cQarZ7P7V2Mdk8aK
-			hex!["4406e77bc60e9a365bc6e4f9d7216aa9d911b906801dae87b1e0681dcd854e4e"].into(),
-			// 5Gc2Lh4cfcACqD6MrnzGbymZnh8PDr2G4NChrapix6Fuassa
-			hex!["c8d3c2dcd08b79371452804fdfa244d642138f4a7904fb2ec16551d3917c4225"].into(),
-			// 5ELTgkEXvoxz54wtav4BxT63ZCfTu97tutL6YFdbEXMHG4jt
-			hex!["647cb07447d1d289c4ecb0be5076370706c36fea55c35203f355933f40d81846"]
+			// 5GpCZcvJ77asez67rCXH3TqNxViMU3jCcV4K2XWLGCubqtrA
+			hex!["d21d1e9146357728cf1ebd31f26aa8683930128f66fda9b32bce7932c28af43a"].into(),
+			// 5CGDSWgNycvNh1VNvoBEHsvBbde3Ar2vuHVp3w4rEonsazdE
+			hex!["08c749538aba7f401649a69d3ddbde89e2c7945ea31be19bf028216b39790426"].into(),
+			// 5FjbJBheYdckzrERnjYQxzGRgNG6vcgTXf7NkkktSVMgkH8V
+			hex!["a25d3020d560599c06fa7fe4d0c7d6da11b907a14bb5f2005b2a8fe91bc8a21d"]
 				.unchecked_into(),
-			// 5HStrP62VSV5FQtMUUnHYaUnF4m6ZEBrwGuCjGmdRqxA4Hfj
-			hex!["ee19942c057b3f621845de8162fd54468f3cdd3b857f501b0d95b0bfb46f9ba6"]
+			// 5F2d8ztYGrV92YRvZ5d1FKEyHz9dmiP3exfrDszBT21SarYr
+			hex!["831e536aa186cdf509160e5bd71d2b62f4cc45d64b032396c2a3661ecaf65084"]
 				.unchecked_into(),
-			// 5EP94Cfdfu7K7mwh79CTz1JDS2dh3FEe9YRzTR6EEzFo4kjx
-			hex!["6687b608a78ca96f9b7064ef4002eb9739b073549a3f90e1573e538df12fe326"]
+			// 5HW6hcJr7XYA3JPW8rrseb1hdS5EuSDHCFvKT2uKSGvm2Ykf
+			hex!["f08b339472aa8a2a48d3f0f54996448ec0bb780ecd18f8158ca89364f8c4b967"]
 				.unchecked_into(),
-			// 5E9ZuC6rrZj1EaTRvLgdZqfZh3xYYMrS6JLo12mXhP6RSgxu
-			hex!["5c2de8f4f9c5a2d18b3e3a5aaabb6b3f28479d6db8d42217610efce146e70137"]
+			// 5GHY1TKTkVdqmriYWmYnGRzyULFF7nP3qV1d46KurRoAPX1a
+			hex!["bab9f89315e720ab439e858e5ea4c74e13e443beb55ce41b2137283d847ffc1d"]
 				.unchecked_into(),
-			// 5FbZq5614E7yPB5hQrehzwzm4M1tczU8UtoKoJ7ymnPXdZcm
-			hex!["9c3e48e717a95104cfbcf04d2e1eb88875d413d36ad4a1dccf2e3f70a96be160"]
+			// 5EvuS2A5ZgM4wjsCuvdzTc9XrncHWLvEKFwfELYKVERMKTN8
+			hex!["7ec1b3c10198473f7579b44c8743b2f6a8d209db59299dd4474ea4d0c3170b28"]
 				.unchecked_into(),
-			// 5GriKDD7iCRGyDwnn5jtEcQBg55JX1Hxtv7wZMJWwPEN7Q7A
-			hex!["d407c34fa128c21bbebb7d87a98454faddd48b50e3c0e49c98468ee22f756075"]
+			// 5Ef5uTeUMpejJsRcVy6CLC9WyWVv5qAa9mXrphTz4RCiLT78
+			hex!["72b10801788a4ee606a5cd435f09ed094ba01e88f4c79aebc3570fe1c1267233"]
 				.unchecked_into(),
 		),
-		// 5
 		(
-			// 5Esv7FBVtv5YbFmVarfvRhC5ouazdXUG2BmpBZPZdkqFUGi5
-			hex!["7c7a3e167dbd9722256eefc8055739e5f85bbc48f8df304cde4b59dbeeb6c505"].into(),
-			// 5HQndxnampS2SZGSWQJ86AWpNULuaSmzGtdj8U9hL3PiKaiq
-			hex!["ec7e2b5d6cb8298957f6ca1a5f98be55503f66ad534eb7d792cf6f7e7377b724"].into(),
-			// 5HWAGu2hVdb6erJABPR6afuqKDcMFMteLnBLU6F21WSBoxQY
-			hex!["f0973b80419284ae574b02fd2e6801dd7797e9ff39a772a634e54c32617c030c"]
+			// 5EkCS6EqvLHxuhiWiWo5sJUGx9EkR8Jon3Uise1d13AcFFGi
+			hex!["76973be100ee6d4676763deabf645c10f8fbbd5d4390a7f41b442f82a610c46c"].into(),
+			// 5FxZAATm5E9ZNprEyKzpL1Rej4Xz6ihBd4tFNjpKyDxNBi3d
+			hex!["ac402e1b08d2fb31251280653748382ff175885885eeb30eef91921d8131934f"].into(),
+			// 5CDdFBKHGLj9T7HUzirFaD8P25B7Pe3wriNufWnmsSnGo9Qc
+			hex!["06cdaf00d5bfa2d3eb81d29a05599c8ff8d48b40184e6ad8b853a2a892a33957"]
 				.unchecked_into(),
-			// 5DPYJypytm5o95wX4UQGFxgKtLbH1zdeLXFU8jhsmJCxrrXP
-			hex!["3a99c2a0c3827ede05e1dc7524a638b0d37395663d773bdfc78643e190e2efdd"]
+			// 5CSx4PUonZrEUXUZMiEmSX97d8Q8KmXeaT4AKJUSiv82rFWQ
+			hex!["10f73511ad077e0c4e43759ab937a701a703673897776179adf0d1ec73d8e9f6"]
 				.unchecked_into(),
-			// 5DLfPkda48dK6VSgS4AELHNVc6ZMQfPceqqdYRcT1uRmciTz
-			hex!["3867dd7a2d3cb4885ad7351c1c22f944c2f831b52eebe8f5e8e1ee5d0dea8326"]
+			// 5GjmgVm462wFq479re3n5wSdhX7JTtmm97Y5ANjqVM2Chkmo
+			hex!["cebc61203e4517ffbe88c9dcc7e89218a61cf43ce0007fa0568ad474c82dec74"]
 				.unchecked_into(),
-			// 5CWzWRjf9oFDkcciNpMYKFRwedBjHLkH8vy13BstJUwxoaZp
-			hex!["140c6ecc744c517aa35eddbe1203311023b727539a9697997d92a4029ac52618"]
+			// 5CcESnaBXSoWyRWoT4cWGN6DSjFhd1eagJc1ZmcTG5drMenW
+			hex!["180b93a412f8a5ef77b4840c21be4bec16623ea5ab0b16a913843f529bde8966"]
 				.unchecked_into(),
-			// 5EhqFp2a3Bz4phEurhZdWUBs3EicuSUyz46jMCSsenJhP5nc
-			hex!["74c97444a5860b1fe16cf79ade80e229beae0f84e8327b8b0cf1c58811ef7d4f"]
+			// 5DF7FvHP6f9QBKZsx3kXN668o58eJFKbXD8z1TgJFTx2Jphr
+			hex!["342b763ca00abaa4fafbd8e7c064dbebc66c1a6b4b965c1f19a32a5958291d7b"]
 				.unchecked_into(),
-			// 5H6hBYLbdZcv7RK79qQCYZg7ZbKkPyLcF9TzDhmFAmozWXf1
-			hex!["deb1631a453dff4149aaff8851d59f52f15046603cb75c1e8c5e0a71da0ac272"]
+			// 5DNvEGo7KYgyuMWev6VfBifaB4z1Qgi12Mn99NAUkcfa7xgf
+			hex!["3a204cdcc8b404e783bcdb8028cf8261ffd4fdfa79c02639e32d8e6c00c84a40"]
+				.unchecked_into(),
+		),
+		(
+			// 5GbGrPQkero2nmR8uSpAAmWdEvcXhbEzf8fRvLxio15CawfD
+			hex!["c8415e14b39b034eec9b7f6932d81395d0edd74ab3694bced061512c0a36a837"].into(),
+			// 5EHRfAp4n1J2kS66NxCf7mSgjoWvC45dtJXqCRHFu2ENTSiA
+			hex!["622c21049dd35f8394aa77aa6849b6696cc8df6e3ab84a6841472eb7f486186f"].into(),
+			// 5GzZ9N1jPPwevaTsDCYyNC5EriCxRh61uSg4NLZmYpr4Xzph
+			hex!["da02db9e19ddae2652726dba6617fa03cf95722ec0b63d1d75ac7a114cc15b70"]
+				.unchecked_into(),
+			// 5HqQbcxnSBxrnQaSGVDijNYhqitaURZxJyYAEPX6aYj7sLPW
+			hex!["ff451c27f50d7f41d9bc1f520ccc717eeff2f0040754b6411ceba8bdc51441bf"]
+				.unchecked_into(),
+			// 5G8pK2sDTNH96ac9yeEPRXEsU4npUU7d9A7tCHYGqbMw5o7Y
+			hex!["b413a4b5eb53b75486648a273f2f35504da48311f7cda6fcd8f1f8961e1d2455"]
+				.unchecked_into(),
+			// 5Gzkhhd6wrVwrGdpzhiK1FfqMMmKeigMJEKUNKmPCf6QUsZC
+			hex!["da29c39a5f3b1f6f90c5274df124e7ba36cce515dba0f27e6b1d21f3f90b4217"]
+				.unchecked_into(),
+			// 5HmiLfFNXRAgpvyUse3wErWQtD8XhohPxnbRxh5Z8RgmkWQP
+			hex!["fc73da7c70dfd520cd764762fc5870435f740e0c245127730be6f4b768318403"]
+				.unchecked_into(),
+			// 5GGuK83vnSqcm9i1iRncKn3D6JUTjbJ9ZVTyp5HeFBZxwnhr
+			hex!["ba3e717db4e832e005b292172c4ba3318881d076c352b487fdd1cb1a25666800"]
 				.unchecked_into(),
 		),
 	];
@@ -534,9 +553,7 @@ fn polkadot_staging_testnet_config_genesis(wasm_binary: &[u8]) -> polkadot::Gene
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		},
-		sudo: polkadot::SudoConfig {
-			key:  Some(staking::get_root_id()),
-		},
+		sudo: polkadot::SudoConfig { key: Some(staking::get_root_id()) },
 		phragmen_election: Default::default(),
 		democracy: Default::default(),
 		council: polkadot::CouncilConfig { members: vec![], phantom: Default::default() },
