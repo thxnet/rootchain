@@ -10,3 +10,5 @@ polkadot.*
 !polkadot.service
 .DS_Store
 .env
+
+result
