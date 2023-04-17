@@ -23,8 +23,8 @@
 use pallet_transaction_payment::CurrencyAdapter;
 use runtime_common::{
 	auctions, claims, crowdloan, impl_runtime_weights, impls::DealWithFees, paras_registrar,
-	prod_or_fast, slots, BlockHashCount, BlockLength, CurrencyToVote, SlowAdjustingFeeUpdate,
-	paras_sudo_wrapper,
+	paras_sudo_wrapper, prod_or_fast, slots, BlockHashCount, BlockLength, CurrencyToVote,
+	SlowAdjustingFeeUpdate,
 };
 
 use runtime_parachains::{
@@ -42,13 +42,14 @@ use frame_election_provider_support::{generate_solution_type, onchain, Sequentia
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		ConstU32, ConstU128, EitherOf, EitherOfDiverse, InstanceFilter, KeyOwnerProofSystem, LockIdentifier,
-		PrivilegeCmp, WithdrawReasons, AsEnsureOriginWithArg,
-		tokens::nonfungibles_v2::Inspect, Currency, OnUnbalanced, tokens::ExistenceRequirement,
+		tokens::{nonfungibles_v2::Inspect, ExistenceRequirement},
+		AsEnsureOriginWithArg, ConstU128, ConstU32, Currency, EitherOf, EitherOfDiverse,
+		InstanceFilter, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced, PrivilegeCmp,
+		WithdrawReasons,
 	},
 	PalletId, RuntimeDebug,
 };
-use frame_system::{EnsureRoot, EnsureWithSuccess, EnsureSigned};
+use frame_system::{EnsureRoot, EnsureSigned, EnsureWithSuccess};
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as session_historical;
@@ -95,7 +96,7 @@ pub use sp_runtime::BuildStorage;
 use pallet_nfts::PalletFeatures;
 
 /// Constant values used within the runtime.
-use polkadot_runtime_constants::{currency::*, fee::*, time::*, staking};
+use polkadot_runtime_constants::{currency::*, fee::*, staking, time::*};
 
 // Weights used in the runtime.
 mod weights;
@@ -132,7 +133,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("thxnet"),
 	impl_name: create_runtime_str!("thxlab"),
 	authoring_version: 0,
-	spec_version: 9400,
+	spec_version: 94000001,
 	impl_version: 0,
 	#[cfg(not(feature = "disable-runtime-api"))]
 	apis: RUNTIME_API_VERSIONS,
@@ -338,11 +339,12 @@ pub struct RewardAccount;
 impl OnUnbalanced<PositiveImbalance> for RewardAccount {
 	fn on_nonzero_unbalanced(amount: PositiveImbalance) {
 		Balances::settle(
-			& staking::get_reward_id(),
+			&staking::get_reward_id(),
 			amount,
 			WithdrawReasons::FEE,
-			ExistenceRequirement::KeepAlive
-		).ok();
+			ExistenceRequirement::KeepAlive,
+		)
+		.ok();
 	}
 }
 
