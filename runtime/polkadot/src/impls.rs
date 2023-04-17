@@ -1,11 +1,5 @@
-use crate::{
-	AccountId, Assets, Runtime,
-};
-use frame_support::{
-	traits::{
-		fungibles::{Balanced, CreditOf},
-	},
-};
+use crate::{AccountId, Assets, Runtime};
+use frame_support::traits::fungibles::{Balanced, CreditOf};
 use pallet_asset_tx_payment::HandleCredit;
 
 /// A `HandleCredit` implementation that naively transfers the fees to the block author.
