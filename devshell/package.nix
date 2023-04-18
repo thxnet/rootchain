@@ -35,11 +35,4 @@ rustPlatform.buildRustPackage {
   LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
 
   SUBSTRATE_CLI_GIT_COMMIT_HASH = "";
-
-  # NOTE: We don't build the WASM runtimes since this would require a more
-  # complicated rust environment setup and this is only needed for developer
-  # environments. The resulting binary is useful for end-users of live networks
-  # since those just use the WASM blob from the network chainspec.
-  # See also: https://docs.rs/substrate-wasm-builder/latest/substrate_wasm_builder/#environment-variables
-  SKIP_WASM_BUILD = 1;
 }

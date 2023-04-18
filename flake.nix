@@ -27,15 +27,10 @@
             ];
           };
 
-          rustToolchain = (with fenix.packages.${system}; combine [
-            complete.cargo
-            complete.rustc
-            complete.clippy
-            complete.rust-src
-            complete.rustfmt
-
-            targets.wasm32-unknown-unknown.latest.rust-std
-          ]);
+          rustToolchain = fenix.packages.${system}.fromToolchainFile {
+            file = ./rust-toolchain.toml;
+            sha256 = "sha256-DCQf3SCznJP8yCYJ4Vziqq3KZkacs+PrWkCir6y3tGA=";
+          };
 
           rustPlatform = pkgs.makeRustPlatform {
             cargo = rustToolchain;
