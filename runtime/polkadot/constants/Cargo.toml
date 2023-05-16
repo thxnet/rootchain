@@ -27,4 +27,4 @@ std = [
 ]
 
 testnet = []
-thxnet = []
+mainnet = []

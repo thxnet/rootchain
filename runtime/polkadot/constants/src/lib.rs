@@ -41,7 +41,7 @@ pub mod time {
 	pub const MILLISECS_PER_BLOCK: Moment = 6000;
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
 	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber =
-		env_or_fast!(4 * HOURS, 1 * HOURS, 2 * MINUTES, 30 * MINUTES);
+		env_or_fast!(1 * HOURS, 4 * HOURS, 2 * MINUTES, 30 * MINUTES);
 
 	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
@@ -109,10 +109,10 @@ pub mod staking {
 				// 5GL2teb1jKjHgenowY4Y6EQvHkpRHJUpQCYVBDAXk4SADAib
 				"bca1b0834cf3b7b0d9258e7a61e5169b16aabfd9233685bfaa8d15c8726b566f",
 			)
-		} else if cfg!(feature = "thxnet") {
+		} else if cfg!(feature = "mainnet") {
 			array_bytes::hex_n_into_unchecked(
-				// 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
-				"d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
+				// 5FxVFABwRiVRZo3YhdPMsDownhjephwa4mRmTsqTQ3gdvHBq
+				"ac33013c3677c74c2a2ea265c5b876ba01050cd6454944b7af0ea03739ac9c70",
 			)
 		} else {
 			array_bytes::hex_n_into_unchecked(
@@ -128,10 +128,10 @@ pub mod staking {
 				// 5D22dYGvG7ucZZBvFJRQQwKfSKK7LtuiUTshtC3UAukQz7RD
 				"2a31b1e8908eb70be0a2688991189bdf4dda1732a43bd73d1ed6482d40343839",
 			)
-		} else if cfg!(feature = "thxnet") {
+		} else if cfg!(feature = "mainnet") {
 			array_bytes::hex_n_into_unchecked(
-				// 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
-				"d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d",
+				// 5EKwWcAFzP8wAqjaTo7uANPp3GNZDcMFjahbDMh75hU8hReW
+				"64171c9eadeebc44f3d667cdbf447fefd3b66cf0337a419177332a4082685220",
 			)
 		} else {
 			array_bytes::hex_n_into_unchecked(

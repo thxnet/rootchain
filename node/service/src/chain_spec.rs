@@ -303,6 +303,286 @@ fn rococo_session_keys(
 }
 
 #[cfg(feature = "polkadot-native")]
+fn polkadot_mainnet_config_genesis(wasm_binary: &[u8]) -> polkadot::GenesisConfig {
+	use hex_literal::hex;
+	use sp_core::crypto::UncheckedInto;
+
+	let initial_authorities: Vec<(
+		AccountId,
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ImOnlineId,
+		ValidatorId,
+		AssignmentId,
+		AuthorityDiscoveryId,
+	)> = vec![
+		(
+			// 5Gdq8PoTSUN6HvtbKHWDfSpHPnAGZnhHKGehLLVKE6ES763o
+			hex!["ca348249f0569071c23fc871aea6879b78c03c1b514b7a5584879cbd7d2e1157"].into(),
+			// 5EwBffRmKRBBNiuQY2GGKKanrVbf5RAH6atag35eHpsGc6p3
+			hex!["7ef85ad2a1219f2ab8528af879a22a17ad7c6ede37de59812902bdccd3cb5d49"].into(),
+			// 5HYdGeKv3ExonMMBb3yDYc3wGUyfvPf6qod8Ev8pze7RRncN
+			hex!["f278993f60b0c12e24b56e40b5455430b95af306c3d2ddfb64c497da06ad7b10"]
+				.unchecked_into(),
+			// 5F2Z1nQ9CGaScwNocSduFhWXZ6CCYuNhLZL125M5FjGn4JgC
+			hex!["8310711e6050b8a2aaa908bf196b20b4ba02f0a17576be623f22b817261de102"]
+				.unchecked_into(),
+			// 5EcVAVFtdGZf8MG8V4gLyJbP2LfwGRWVfdvYm5Zy1uFPxU4k
+			hex!["70b597984d615042e101719cd3cfa10eaff3e65eee973e9db214983bfeea786b"]
+				.unchecked_into(),
+			// 5F2PTdsv7LStDgdKnY9Q7pKpXD2XzSnyB6HUgJx27wjDWyY7
+			hex!["82f04784ff11732c3a4071421782d407eef33f495fb5ba1b0d416c6a1b1dae78"]
+				.unchecked_into(),
+			// 5FyGi5Ln9XQBNT9QqYrCQQU2gszLdi15aV1kkgWvShNRp2jp
+			hex!["accc0cf0ba9c49f30bac8bfd8c750832c08aef5a2929f338e7c8f2b11ae98112"]
+				.unchecked_into(),
+			// 5Hpej9mYXBBDSgsRCHL4dA1CsBRXQu6L7Rrn3GST6ijfKNBG
+			hex!["feb16e0d06982f46967e51fc9dd70855a3f1b203383918e91db547db41c03c33"]
+				.unchecked_into(),
+		),
+		(
+			// 5FEaoneiQz8Yhg9P62zfZ9h8Ji8caxM49VaAWq6tpJtWxnaP
+			hex!["8c3d6c502313d11558c9fcaf836dd1918a86952088a5631e97e0aa75d94cd01b"].into(),
+			// 5GRa7cdDN5a3DoskFSUpy4mWgUZzWp2sKLYC5gNQx8HMNumL
+			hex!["c0db063dc0867d212c629bf969ac5edb595bdaf5821aa22f8b0548762192ec3a"].into(),
+			// 5CfmGd4a7wnUg2x9gpAg1YZmogaxEnmvgpNDBPzi2aNrhiHR
+			hex!["1abd140d0d1fcdefc7b0afe7513f61a90be0e3a7e4140fa9ae305a7c267e0b0b"]
+				.unchecked_into(),
+			// 5DeCfDsUgfFeDXgoa7yJAzcSpVtKZNrmrZDFKr7nF4BKCrtD
+			hex!["45c84a48ece8d93475a2a140c2154efc816ab0850090c7127450b280fa28fefa"]
+				.unchecked_into(),
+			// 5FHGVPg3xbn5hJBWJNJAznwTS2ryF4fTzav2bGALHo653SVd
+			hex!["8e497f8a3c2ffb1e387e6a0664d0f6e3fef86a0e6dc0a920a6a70effd6108f1b"]
+				.unchecked_into(),
+			// 5FFKt6wVaDpKt7Xk8iTDWRY8F1L8ow8LREWAB5A4gu6NuAUV
+			hex!["8cce6ca98157b94eb4bcf885266777863de58f8ccdeb833ab89535a3a5c2271a"]
+				.unchecked_into(),
+			// 5CrQ78gQ2Rt55PZE2GnMgJU5SvXZjV5eiuELaK4VDz78R8LW
+			hex!["22d988e2e1647874af25987629b5ee328face39ef4d27e26cae072e430214276"]
+				.unchecked_into(),
+			// 5Enj3JpMd7ueUaTpFMHMzXVLXkGzhv9iWUufjoTaUqhjVu26
+			hex!["7884c1f7cce716675faaacbb49be3c326a78fb98bfdf16249d16717488291b12"]
+				.unchecked_into(),
+		),
+		(
+			// 5GbsxEGtU8BTjdr4GmM5KZmPpmhqg4G4Kj4TY7HNR67tabMG
+			hex!["c8b786f029bf7a36bff8d4dc858d5abe385b962a55253333727ea8499b03d467"].into(),
+			// 5CA4MwVV45Sk39KDEdfvtGcF1T1XFkohmeCS4azPAyyzdBgN
+			hex!["0415407ecfa96bbd36f85cd4fe949a139933fd5033c28b27a9c821c1ad337b3a"].into(),
+			// 5GZYNvnhFq31dNp6J5tZ1NLaC5T33gpVmKojGpznyo5gNqfm
+			hex!["c6ef24cf1bf06e8b4374167dbc8d9b5f18caccb45b36b0bdf5b7e2c8f1e57764"]
+				.unchecked_into(),
+			// 5E7PGJSuNrWR8ChoXse7hvBup5mJZD5z4mNmyKFRfLQ46phx
+			hex!["5a839d74a65373d23665b847a08f7243a3552c4326993ce4953ad0b416ac5f1b"]
+				.unchecked_into(),
+			// 5G9WexnjtxzS7gLJoWruue4hPJq8b6nHy7QP9EahA3zKa9re
+			hex!["b49b73bdf1903e12dc0f04a5c258231a79778bf905493f1261fbc13860eb2b49"]
+				.unchecked_into(),
+			// 5EPAg3baXNpNPWmQfFBvVecdvFfev8K5V12hHLG7X4SaP6fG
+			hex!["668d28606a03e543dd5075a25866e26738be03bca7b6e6d460ee1477a7867d37"]
+				.unchecked_into(),
+			// 5CLpqk4FNA2Q1KZZk371bVYuKSn2uJHn7iEJZwb7b62WH8Qc
+			hex!["0c4b6fd55c3df292d880121d6d033bf8d40452ae01816b8464b6047549648667"]
+				.unchecked_into(),
+			// 5E1k2TNjZkrGzs7YiSWaTesTDUDJc6vE8Syapfpjpyo3KRbN
+			hex!["563608044cfc5b78135dbe0e27f98d415c5e4459259b07315b6f7cc382bd2a7f"]
+				.unchecked_into(),
+		),
+		(
+			// 5HjQaoPRHeex5kBYHqq1pVxdoaaX13xxFd68c6Fj378DnY9k
+			hex!["fab197070321a7b543c1b573f5d42f12efff3830144d07b7bfbdc7419c841c70"].into(),
+			// 5HTdob9CuCCDDqYQbuZKA6sBo53EbwM3mK8BanvuoY35U99X
+			hex!["eeaa2aeab83ecd294e6f9d50cd5676f1e72b5205e2f86d9ed637cb6eda76ed0b"].into(),
+			// 5HbASvhZQxq9QMmhmsrQk8B2Bp5mfQZz3TyuEJyGhq4hYSwq
+			hex!["f4680aa0bf53e527bb632a1b85d01e916bb5b404ad1db5a39f177588ba41b713"]
+				.unchecked_into(),
+			// 5H2QvR152qkMjAdketnjxHGsS6UMFVkfGCn5kzXWVDArjz7p
+			hex!["db6daab112877ebb292c5b3050dc9d743d2f9310ca788a9a101a914c9298c2e3"]
+				.unchecked_into(),
+			// 5G4DjCcj2VjAw3QbdzXQLy8n71dX6LSuyhRKq89hHqcBw8GL
+			hex!["b0923e761687c6d935eab156c09f91443d7cfb89c5d840e0c85b1fb5c3757c1a"]
+				.unchecked_into(),
+			// 5CdTKb6EwZohpQVXUUzEXccce2E73TgqvRY16Vt7Y1g8enYY
+			hex!["18fa2a900bdc72efb3e750d459274a3cc6240106a04fd09b9f342d3128e4ba03"]
+				.unchecked_into(),
+			// 5DFYSZGs5ouUGe6B1eBWSCYQt1yxTRYLVaXwdgHPU2gum4MZ
+			hex!["34803c9d7143df85b72e1021a01109c89eea583fbe333909419d5f00c1d06174"]
+				.unchecked_into(),
+			// 5H3omWh4MHtmdsd7t9PjKwTNTsXbPiNpk9ZcZin5VFwm7UdC
+			hex!["dc7dd206305e8af5da324339459088202ac4d145e5706b76dfc79709ffd92c6e"]
+				.unchecked_into(),
+		),
+		(
+			// 5Gn2wYqLLBCJFrTc6uVtYhezHNcnUe9SEyzbCjwxisW7qDBR
+			hex!["d0763d06653de774a37525ee428a13039f6237e958e3466b84ff11c964ca3e21"].into(),
+			// 5H3dDwXz558U37LTqJqgdA7cEnAJ2Xx8YE1BmJNNzwBsD9xr
+			hex!["dc5a53330cec1fa3d07f57c70e0e41554031f4f1b218605ae15a0f0b6d16a56c"].into(),
+			// 5HBkRyGaHeDimpDhapFoQ1pQgoCBAJb8Sg1LhkUBtD4xZLkh
+			hex!["e28c8cf07c2f88af536a19d91fabf2dc899fae1b36b0054cd6c91121f9e9ac78"]
+				.unchecked_into(),
+			// 5GjXdW2hHbbJBGTMq1VU372sP8AYdocEMMHBc7AQyWPwLbaS
+			hex!["ce8d13cd1582150019e42fca080e390cebfd7540c17d0fe6814ed70d44cdc224"]
+				.unchecked_into(),
+			// 5CCkNa3xXLvPfsYgwh74XCQvf6A1ykSJDxdgmVZHTV44aeUV
+			hex!["06226e6bbf7be41db685c577466c42b0156db831d6a6713426199dc6213dd22a"]
+				.unchecked_into(),
+			// 5DQ45R3uYqVALY1sqsjjHrGyoRT9qpjGAMccCoNQqdCDgoEh
+			hex!["3afdf6428885ca3dd013d5f6e1289b853b293060dac6996537cc1d9ee6a2780a"]
+				.unchecked_into(),
+			// 5GYmgNHaY3awWiFLtqiXGueCSgAmNU4knzZZt2owv42pJCjb
+			hex!["c658ac2716b6964189fd04b33ac1d4ec9dcd11b2002f4ab69bde109a664b570c"]
+				.unchecked_into(),
+			// 5GWmhvkESNnKUb5M823RhmzRc2CNb9Z8gKEBi3vkiHVmnqj7
+			hex!["c4d245addbb553dc5edc57c8b643d9f7d164a5cda81960bc64a29f7cf0832045"]
+				.unchecked_into(),
+		),
+		(
+			// 5GeA1NDTKTDAcQJHZjSfYsMycMPVQ5dHw6BVphd2JMdwtZHt
+			hex!["ca740f8f1899103bc1066fc809e8e652ecd0c600b727398b294e9ddeb3506235"].into(),
+			// 5G4dFbvZ2fzL4XUYqCLw5piDaGhBvnoGGMixe6jd3172ThfM
+			hex!["b0e16ef3926a8933b07a67c4f2c08cf063e671ef53a89ba1d8296646f6691b22"].into(),
+			// 5HWC4tQUBiZiLPxzczfFPsPUXKjSjabynPjEdbEcMDJC92uC
+			hex!["f09d4496bb508e906b74c013d5b7ad7733cbf7c27b5759bd6351b1d5974d4d02"]
+				.unchecked_into(),
+			// 5EH8wEJ2QhTmVDL57oSeriE6iJnVekiViWYwWGYMtU5nmNZT
+			hex!["61f3d580a76762ad7ddeb4c95897085e482481bd93a737825d2695ff49004c86"]
+				.unchecked_into(),
+			// 5FHpKF8bve14PK8hHzMhDzaThRZEqxwJLaYN61XhUR2WFWEE
+			hex!["8eb4a18018686282bb8d21d60fbc81d7bdcf3a12b4d531d3f21738a9aaacf320"]
+				.unchecked_into(),
+			// 5ECV2PnRJHS33KjK2JZr3seUYbsZo1SJZ9vgyknzQuTHWzho
+			hex!["5e673b9027b394d507d437c395b91d3d232f07e40da10c5d442276bd279baa7d"]
+				.unchecked_into(),
+			// 5HWaVjAV5um7eeVkrR1TdEshAoQSL4RrASUE6p88etwLNsTQ
+			hex!["f0e8c4ad621f82b3849a7f7afe8558f1925944a42011071dd25484d07d2e9b3d"]
+				.unchecked_into(),
+			// 5Fv3FESLwUCX65bdAPNgJqHfsrAcREJnXaBEvpFWkBwxpyvZ
+			hex!["aa54fe954c7df578073c3bbd2287c09e6fd1c6b8286117a77abf04e614224645"]
+				.unchecked_into(),
+		),
+	];
+
+	const ENDOWED: u128 = 20 * DOT;
+	const STASH: u128 = ENDOWED / 2;
+
+	// subkey inspect "$SECRET"
+	let endowed_accounts: Vec<(AccountId, u128)> = vec![
+		// mainnetbit3x
+		// 5FgVj4pCzSAB9JkM5A4QMSYiePN3rXfem4bfN11Tws8kbNAP
+		(
+			hex!["a000b2b5d8bb5906cc99bb5a7bdd1e454bf9397420564580e4f148c3ce7fb625"].into(),
+			75_000_000 * DOT,
+		),
+		// mainnet001
+		// 5Hj1eKZzJgZh8fPvy69xrgzEEywJ8A4C8W8WPbKigEb1PVuu
+		(
+			hex!["fa645e8f16972a9f09114cb10af1e94bae56ed43495fdbaafa532c5d3612c47f"].into(),
+			75_000_000 * DOT,
+		),
+		// mainnet002
+		// 5CMbuWTZx5Zn3zvwFhCAtPmEHfiBLGGa1XJK6xHRBpACu59D
+		(
+			hex!["0ce3238f3914a7cd3f78f5437b1a96b1a0d287e0a69250f6ef3d7bf27bbbb053"].into(),
+			75_000_000 * DOT,
+		),
+		// mainnet003
+		// 5D1yq8hpnRpujtoDmnLFCpE3FTYiWHwxwcVah3oY1tunA4eF
+		(
+			hex!["2a2844d9810613669135da8841add0937b4b0327317e3ded3db0ad12c24e0906"].into(),
+			50_000_000 * DOT,
+		),
+		// mainnetthxlab
+		// 5Dr7bALx8hpJNobtbBXmN1sKftRGmNVBuhCoXjLSH846zQGP
+		(
+			hex!["4ede2af78d8e231edc5b666f21cbed72c5ea9f3e688d084efe6fc8bf117bf670"].into(),
+			50_000_000 * DOT,
+		),
+		// mainnetpool
+		// 5EKwWcAFzP8wAqjaTo7uANPp3GNZDcMFjahbDMh75hU8hReW
+		(
+			hex!["64171c9eadeebc44f3d667cdbf447fefd3b66cf0337a419177332a4082685220"].into(),
+			75_000_000 * DOT - (initial_authorities.len() as u128) * ENDOWED,
+		),
+		// mainnetthxfoundation
+		// 5FxVFABwRiVRZo3YhdPMsDownhjephwa4mRmTsqTQ3gdvHBq
+		(
+			hex!["ac33013c3677c74c2a2ea265c5b876ba01050cd6454944b7af0ea03739ac9c70"].into(),
+			100_000_000 * DOT,
+		),
+	];
+
+	polkadot::GenesisConfig {
+		system: polkadot::SystemConfig { code: wasm_binary.to_vec() },
+		balances: polkadot::BalancesConfig {
+			balances: endowed_accounts
+				.iter()
+				.map(|x| (x.0.clone(), x.1))
+				.chain(initial_authorities.iter().map(|x| (x.0.clone(), ENDOWED)))
+				.collect(),
+		},
+		indices: polkadot::IndicesConfig { indices: vec![] },
+		session: polkadot::SessionConfig {
+			keys: initial_authorities
+				.iter()
+				.map(|x| {
+					(
+						x.0.clone(),
+						x.0.clone(),
+						polkadot_session_keys(
+							x.2.clone(),
+							x.3.clone(),
+							x.4.clone(),
+							x.5.clone(),
+							x.6.clone(),
+							x.7.clone(),
+						),
+					)
+				})
+				.collect::<Vec<_>>(),
+		},
+		staking: polkadot::StakingConfig {
+			validator_count: 15,
+			minimum_validator_count: 4,
+			stakers: initial_authorities
+				.iter()
+				.map(|x| (x.0.clone(), x.1.clone(), STASH, polkadot::StakerStatus::Validator))
+				.collect(),
+			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
+			force_era: Forcing::ForceNone,
+			slash_reward_fraction: Perbill::from_percent(10),
+			..Default::default()
+		},
+		sudo: polkadot::SudoConfig { key: Some(staking::get_root_id()) },
+		phragmen_election: Default::default(),
+		democracy: Default::default(),
+		council: polkadot::CouncilConfig { members: vec![], phantom: Default::default() },
+		technical_committee: polkadot::TechnicalCommitteeConfig {
+			members: vec![],
+			phantom: Default::default(),
+		},
+		technical_membership: Default::default(),
+		babe: polkadot::BabeConfig {
+			authorities: Default::default(),
+			epoch_config: Some(polkadot::BABE_GENESIS_EPOCH_CONFIG),
+		},
+		grandpa: Default::default(),
+		im_online: Default::default(),
+		authority_discovery: polkadot::AuthorityDiscoveryConfig { keys: vec![] },
+		claims: polkadot::ClaimsConfig { claims: vec![], vesting: vec![] },
+		vesting: polkadot::VestingConfig { vesting: vec![] },
+		treasury: Default::default(),
+		hrmp: Default::default(),
+		configuration: polkadot::ConfigurationConfig {
+			config: default_parachains_host_configuration(),
+		},
+		paras: Default::default(),
+		xcm_pallet: Default::default(),
+		nomination_pools: Default::default(),
+	}
+}
+
+#[cfg(feature = "polkadot-native")]
 fn polkadot_staging_testnet_config_genesis(wasm_binary: &[u8]) -> polkadot::GenesisConfig {
 	use hex_literal::hex;
 	use sp_core::crypto::UncheckedInto;
@@ -1281,6 +1561,35 @@ pub fn polkadot_chain_spec_properties() -> serde_json::map::Map<String, serde_js
 	.as_object()
 	.expect("Map given; qed")
 	.clone()
+}
+
+/// Polkadot mainnet config.
+#[cfg(feature = "polkadot-native")]
+pub fn polkadot_mainnet_config() -> Result<PolkadotChainSpec, String> {
+	let wasm_binary = polkadot::WASM_BINARY.ok_or("Polkadot development wasm not available")?;
+	let boot_nodes = vec![];
+
+	Ok(PolkadotChainSpec::from_genesis(
+		"THXNET. Mainnet",
+		"thxnet_mainnet",
+		ChainType::Live,
+		move || polkadot_mainnet_config_genesis(wasm_binary),
+		boot_nodes,
+		None,
+		Some(DEFAULT_PROTOCOL_ID),
+		None,
+		Some(
+			serde_json::json!({
+				"tokenSymbol": "THX",
+				"tokenDecimals": 10,
+				"ss58Format": 42,
+			})
+			.as_object()
+			.expect("Map given; qed")
+			.clone(),
+		),
+		Default::default(),
+	))
 }
 
 /// Polkadot staging testnet config.

@@ -211,5 +211,4 @@ runtime-metrics = [
 ]
 
 testnet = [ "polkadot-runtime?/testnet" ]
-
-thxnet = [ "polkadot-runtime?/thxnet" ]
+mainnet = [ "polkadot-runtime?/mainnet" ]

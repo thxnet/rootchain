@@ -276,13 +276,13 @@ macro_rules! prod_or_fast {
 
 #[macro_export]
 macro_rules! env_or_fast {
-	($thxnet:expr, $testnet:expr, $fast:expr, $default:expr) => {
+	($testnet:expr, $mainnet:expr, $fast:expr, $default:expr) => {
 		if cfg!(feature = "fast-runtime") {
 			$fast
-		} else if cfg!(feature = "thxnet") {
-			$thxnet
 		} else if cfg!(feature = "testnet") {
 			$testnet
+		} else if cfg!(feature = "mainnet") {
+			$mainnet
 		} else {
 			$default
 		}
