@@ -11,4 +11,7 @@ polkadot.*
 .DS_Store
 .env
 
+.direnv/
+
 result
+

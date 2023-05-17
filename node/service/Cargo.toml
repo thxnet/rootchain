@@ -96,12 +96,16 @@ polkadot-runtime-parachains = { path = "../../runtime/parachains" }
 polkadot-node-network-protocol = { path = "../network/protocol" }
 
 # Polkadot Runtime Constants
+thxnet-runtime-constants = { path = "../../runtime/thxnet/constants", optional = true }
+thxnet-testnet-runtime-constants = { path = "../../runtime/thxnet-testnet/constants", optional = true }
 polkadot-runtime-constants = { path = "../../runtime/polkadot/constants", optional = true }
 kusama-runtime-constants = { path = "../../runtime/kusama/constants", optional = true }
 rococo-runtime-constants = { path = "../../runtime/rococo/constants", optional = true }
 westend-runtime-constants = { path = "../../runtime/westend/constants", optional = true }
 
 # Polkadot Runtimes
+thxnet-runtime = { path = "../../runtime/thxnet", optional = true }
+thxnet-testnet-runtime = { path = "../../runtime/thxnet-testnet", optional = true }
 polkadot-runtime = { path = "../../runtime/polkadot", optional = true }
 kusama-runtime = { path = "../../runtime/kusama", optional = true }
 westend-runtime = { path = "../../runtime/westend", optional = true }
@@ -174,7 +178,15 @@ full-node = [
 # Configure the native runtimes to use. Polkadot is enabled by default.
 #
 # Validators require the native runtime currently
-polkadot-native = [ "polkadot-runtime", "polkadot-runtime-constants", "polkadot-client/polkadot" ]
+polkadot-native = [
+    "polkadot-runtime",
+    "polkadot-runtime-constants",
+    "polkadot-client/polkadot",
+    "thxnet-runtime",
+    "thxnet-runtime-constants",
+    "thxnet-testnet-runtime",
+    "thxnet-testnet-runtime-constants",
+]
 kusama-native = [ "kusama-runtime", "kusama-runtime-constants", "polkadot-client/kusama" ]
 westend-native = [ "westend-runtime", "westend-runtime-constants", "polkadot-client/westend" ]
 rococo-native = [ "rococo-runtime", "rococo-runtime-constants", "polkadot-client/rococo" ]
@@ -209,7 +221,3 @@ runtime-metrics = [
 	"polkadot-runtime?/runtime-metrics",
 	"polkadot-runtime-parachains/runtime-metrics"
 ]
-
-testnet = [ "polkadot-runtime?/testnet" ]
-
-thxnet = [ "polkadot-runtime?/thxnet" ]
