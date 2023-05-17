@@ -299,7 +299,5 @@ on-chain-release-build = [
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
 fast-runtime = []
-testnet = ["polkadot-runtime-constants/testnet"]
-thxnet = ["polkadot-runtime-constants/thxnet"]
 
 runtime-metrics = ["runtime-parachains/runtime-metrics", "sp-io/with-tracing"]

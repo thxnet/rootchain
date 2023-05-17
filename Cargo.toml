@@ -56,6 +56,10 @@ members = [
 	"runtime/westend/constants",
 	"runtime/test-runtime",
 	"runtime/test-runtime/constants",
+	"runtime/thxnet",
+	"runtime/thxnet/constants",
+	"runtime/thxnet-testnet",
+	"runtime/thxnet-testnet/constants",
 	"statement-table",
 	"xcm",
 	"xcm/xcm-builder",
@@ -194,11 +198,11 @@ inherits = "release"
 lto = true
 codegen-units = 1
 
-[profile.testnet]
-inherits = "release"
-debug = 1 # debug symbols are useful for profilers
-debug-assertions = true
-overflow-checks = true
+# [profile.testnet]
+# inherits = "release"
+# debug = 1 # debug symbols are useful for profilers
+# debug-assertions = true
+# overflow-checks = true
 
 [features]
 runtime-benchmarks= [ "polkadot-cli/runtime-benchmarks" ]
@@ -207,8 +211,6 @@ fast-runtime = [ "polkadot-cli/fast-runtime" ]
 runtime-metrics = [ "polkadot-cli/runtime-metrics" ]
 pyroscope = ["polkadot-cli/pyroscope"]
 jemalloc-allocator = ["polkadot-node-core-pvf/jemalloc-allocator", "polkadot-overseer/jemalloc-allocator"]
-testnet = [ "polkadot-cli/testnet" ]
-thxnet = [ "polkadot-cli/thxnet"]
 
 # Configuration for building a .deb package - for use with `cargo-deb`
 [package.metadata.deb]
