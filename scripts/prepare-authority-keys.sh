@@ -3,18 +3,13 @@ set -e
 
 
 SEEDS=(
-	"Aro"
-	"Noel"
-	"Terry"
-	"Edgard"
-	"Wz"
-	"Jenny"
-	"Satoshi"
-	"Ryohei"
-	"Guvanch"
-	"Atabek"
-	"Sam"
-	"Rosan"
+	"validator-thxlab-1"
+	"validator-thxlab-2"
+	"validator-mw3w"
+	"validator-bit3x"
+	"validator-aro-1"
+	"validator-aro-2"
+	"validator-thxfdn"
 )
 
 generate_account_id() {

@@ -40,7 +40,9 @@ pub mod time {
 	use runtime_common::prod_or_fast;
 	pub const MILLISECS_PER_BLOCK: Moment = 6000;
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(4 * HOURS, 2 * MINUTES);
+	// FIXME
+	// pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(4 * HOURS, 2 * MINUTES);
+	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(2 * MINUTES, 2 * MINUTES);
 
 	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
@@ -106,6 +108,7 @@ pub mod staking {
 
 	pub fn get_root_id() -> AccountId {
 		array_bytes::hex_n_into_unchecked(
+			// mainnetthxfoundation (thxtreasury)
 			// 5FxVFABwRiVRZo3YhdPMsDownhjephwa4mRmTsqTQ3gdvHBq
 			"ac33013c3677c74c2a2ea265c5b876ba01050cd6454944b7af0ea03739ac9c70",
 		)
@@ -113,6 +116,7 @@ pub mod staking {
 
 	pub fn get_reward_id() -> AccountId {
 		array_bytes::hex_n_into_unchecked(
+			// mainnetpool
 			// 5EKwWcAFzP8wAqjaTo7uANPp3GNZDcMFjahbDMh75hU8hReW
 			"64171c9eadeebc44f3d667cdbf447fefd3b66cf0337a419177332a4082685220",
 		)
