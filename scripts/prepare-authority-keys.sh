@@ -3,12 +3,15 @@ set -e
 
 
 SEEDS=(
-	"validator-thxlab-1"
-	"validator-thxlab-2"
+	"validator-thxlab-01"
+	"validator-thxlab-02"
+	"validator-thxlab-03"
+	"validator-thxlab-04"
+	"validator-thxlab-05"
+	"validator-thxlab-06"
 	"validator-mw3w"
 	"validator-bit3x"
-	"validator-aro-1"
-	"validator-aro-2"
+	"validator-aro"
 	"validator-thxfdn"
 )
 
