@@ -561,9 +561,7 @@ pallet_staking_reward_curve::build! {
 
 parameter_types! {
 	// Six sessions in an era (24 hours).
-	// FIXME
-	// pub const SessionsPerEra: SessionIndex = prod_or_fast!(6, 1);
-	pub const SessionsPerEra: SessionIndex = prod_or_fast!(5, 1);
+	pub const SessionsPerEra: SessionIndex = prod_or_fast!(6, 1);
 
 	// 2 eras for unbonding (2 days).
 	pub BondingDuration: sp_staking::EraIndex = prod_or_fast!(
