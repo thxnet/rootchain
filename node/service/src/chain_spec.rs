@@ -769,8 +769,8 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 				.collect::<Vec<_>>(),
 		},
 		staking: thxnet::StakingConfig {
-			validator_count: 5,
-			minimum_validator_count: 3,
+			validator_count: 6,
+			minimum_validator_count: 4,
 			stakers: initial_authorities
 				.iter()
 				.map(|x| {
@@ -782,7 +782,7 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 					)
 				})
 				.collect(),
-			invulnerables: initial_authorities.iter().map(|x| x.stash_account_id.clone()).collect(),
+			invulnerables: Vec::new(),
 			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
