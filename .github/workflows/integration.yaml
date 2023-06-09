@@ -26,7 +26,7 @@ concurrency:
 jobs:
   image:
     name: Build and publish images
-    runs-on: noel
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
