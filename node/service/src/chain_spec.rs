@@ -400,7 +400,9 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 			]
 			.unchecked_into(),
 			endowed_balance: 100 * DOT,
-			stash: 50 * DOT,
+			// FIXME
+			// statsh: 50 * DOT
+			stash: 10 * DOT,
 		},
 		InitialAuthorityConfiguration {
 			// validator-thxlab-02
@@ -435,7 +437,9 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 			]
 			.unchecked_into(),
 			endowed_balance: 100 * DOT,
-			stash: 50 * DOT,
+			// FIXME
+			// statsh: 50 * DOT
+			stash: 10 * DOT,
 		},
 		InitialAuthorityConfiguration {
 			// validator-thxlab-03
@@ -470,7 +474,9 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 			]
 			.unchecked_into(),
 			endowed_balance: 100 * DOT,
-			stash: 50 * DOT,
+			// FIXME
+			// statsh: 50 * DOT
+			stash: 10 * DOT,
 		},
 		InitialAuthorityConfiguration {
 			// validator-thxlab-04
@@ -505,7 +511,9 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 			]
 			.unchecked_into(),
 			endowed_balance: 100 * DOT,
-			stash: 50 * DOT,
+			// FIXME
+			// statsh: 50 * DOT
+			stash: 10 * DOT,
 		},
 		InitialAuthorityConfiguration {
 			// validator-thxlab-05
@@ -540,7 +548,9 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 			]
 			.unchecked_into(),
 			endowed_balance: 100 * DOT,
-			stash: 50 * DOT,
+			// FIXME
+			// statsh: 50 * DOT
+			stash: 10 * DOT,
 		},
 		InitialAuthorityConfiguration {
 			// validator-thxlab-06
@@ -575,7 +585,9 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 			]
 			.unchecked_into(),
 			endowed_balance: 100 * DOT,
-			stash: 50 * DOT,
+			// FIXME
+			// statsh: 50 * DOT
+			stash: 10 * DOT,
 		},
 		InitialAuthorityConfiguration {
 			// validator-mw3w
@@ -610,7 +622,9 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 			]
 			.unchecked_into(),
 			endowed_balance: 100 * DOT,
-			stash: 50 * DOT,
+			// FIXME
+			// statsh: 50 * DOT
+			stash: 10 * DOT,
 		},
 		InitialAuthorityConfiguration {
 			// validator-bit3x
@@ -645,7 +659,9 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 			]
 			.unchecked_into(),
 			endowed_balance: 100 * DOT,
-			stash: 50 * DOT,
+			// FIXME
+			// statsh: 50 * DOT
+			stash: 10 * DOT,
 		},
 		InitialAuthorityConfiguration {
 			// validator-aro
@@ -680,7 +696,9 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 			]
 			.unchecked_into(),
 			endowed_balance: 100 * DOT,
-			stash: 50 * DOT,
+			// FIXME
+			// statsh: 50 * DOT
+			stash: 10 * DOT,
 		},
 		InitialAuthorityConfiguration {
 			// validator-thxfdn
@@ -715,7 +733,9 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 			]
 			.unchecked_into(),
 			endowed_balance: 100 * DOT,
-			stash: 50 * DOT,
+			// FIXME
+			// statsh: 50 * DOT
+			stash: 10 * DOT,
 		},
 	];
 
@@ -731,7 +751,19 @@ fn thxnet_mainnet_config_genesis(wasm_binary: &[u8]) -> thxnet::GenesisConfig {
 		// 5FxVFABwRiVRZo3YhdPMsDownhjephwa4mRmTsqTQ3gdvHBq
 		(
 			hex!["ac33013c3677c74c2a2ea265c5b876ba01050cd6454944b7af0ea03739ac9c70"].into(),
-			20_000_000 * DOT,
+			18_000_000 * DOT,
+		),
+		// thx! leafchain box
+		// 5ER7Sz8DHV2WQqBKJx56u3kTEMHLyjdg46YHqmNcmaogTYqR
+		(
+			hex!["6808caa8e9f5bcf37af356915f769028310c6e13fddd4b10bc15d33f02e83528"].into(),
+			1_000_000 * DOT,
+		),
+		// lmt leafchain box
+		// 5E7LvSpJGbEoGkS2meTvpv4isV1MS1RzVaji5uhwVqyEd8x2
+		(
+			hex!["5a7bbae410b463ad1567f937b203ab43a55e8d68a7166c4b2a0867b34b542813"].into(),
+			1_000_000 * DOT,
 		),
 	];
 
