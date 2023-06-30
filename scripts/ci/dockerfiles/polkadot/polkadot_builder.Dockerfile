@@ -1,21 +1,26 @@
 # syntax=docker/dockerfile:1.4
 
+FROM sccache AS sccache
+
 # This is the build stage for THXNET. node. Here we create the binary in a temporary image.
-FROM ghcr.io/thxnet/ci-containers/substrate-based:build-2023.05.20-41956af as builder
+FROM substrate-based as builder
+
+COPY --from=sccache /usr/bin/sccache /usr/bin/sccache
 
 WORKDIR /build
 COPY . /build
 
+ARG RUSTC_WRAPPER="/usr/bin/sccache"
+ARG AWS_ACCESS_KEY_ID
+ARG AWS_SECRET_ACCESS_KEY
+ARG SCCACHE_BUCKET
+ARG SCCACHE_ENDPOINT
+ARG SCCACHE_S3_USE_SSL
+
 RUN cargo build --locked --release
 
 # This is the 2nd stage: a very small image where we copy the THXENT. binary."
-FROM docker.io/library/ubuntu:22.04 as rootchain
-
-LABEL description="Container image for THXNET." \
-    io.thxnet.image.type="final" \
-    io.thxnet.image.authors="contact@thxlab.io" \
-    io.thxnet.image.vendor="thxlab.io" \
-    io.thxnet.image.description="THXNET.: The Hybrid Next-Gen Blockchain Network"
+FROM ubuntu as rootchain
 
 COPY --from=builder /build/target/release/polkadot /usr/local/bin
 
