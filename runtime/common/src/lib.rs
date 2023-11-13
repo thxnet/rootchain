@@ -93,9 +93,9 @@ parameter_types! {
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 10u128);
 	/// The maximum amount of the multiplier.
 	pub MaximumMultiplier: Multiplier = Bounded::max_value();
-	/// Maximum length of block. Up to 300MB.
+	/// Maximum length of block. Up to 30MB.
 	pub BlockLength: limits::BlockLength =
-	limits::BlockLength::max_with_normal_ratio(300  * 1024 * 1024, NORMAL_DISPATCH_RATIO);
+	limits::BlockLength::max_with_normal_ratio(30  * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 }
 
 /// Parameterized slow adjusting fee updated based on
