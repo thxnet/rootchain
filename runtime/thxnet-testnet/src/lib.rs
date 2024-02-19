@@ -133,7 +133,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("thxnet"),
 	impl_name: create_runtime_str!("thxlab"),
 	authoring_version: 0,
-	spec_version: 94000002,
+	spec_version: 94000003,
 	impl_version: 0,
 	#[cfg(not(feature = "disable-runtime-api"))]
 	apis: RUNTIME_API_VERSIONS,
@@ -1122,6 +1122,7 @@ parameter_types! {
 	pub const StringLimit: u32 = 50;
 	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
 	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
+	pub const DaoTopicRaiserBalanceLowerBound: Balance = 1_000_000 * UNITS;
 }
 
 impl pallet_assets::Config for Runtime {
@@ -1187,6 +1188,26 @@ impl pallet_nfts::Config for Runtime {
 	type Helper = ();
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
 	type Locker = ();
+}
+
+impl pallet_dao::Config for Runtime {
+	type Currency = Balances;
+	type CurrencyUnits = ConstU128<{ UNITS }>;
+	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+	type OptionIndex = u64;
+	type RuntimeEvent = RuntimeEvent;
+	type StringLimit = ConstU32<{ 2048 * 4 }>;
+	type TopicDescriptionMaximumLength = ConstU32<2048>;
+	type TopicDescriptionMinimumLength = ConstU32<1>;
+	type TopicId = u64;
+	type TopicOptionMaximumLength = ConstU32<256>;
+	type TopicOptionMaximumNumber = ConstU32<1024>;
+	type TopicOptionMinimumLength = ConstU32<1>;
+	type TopicRaiserBalanceLowerBound = ConstU128<1_000_000>;
+	type TopicTitleMaximumLength = ConstU32<256>;
+	type TopicTitleMinimumLength = ConstU32<1>;
+	type UnixTime = pallet_timestamp::Pallet<Runtime>;
+	type Vote = u128;
 }
 
 parameter_types! {
@@ -1595,6 +1616,7 @@ construct_runtime! {
 		AssetTxPayment: pallet_asset_tx_payment::{Pallet, Storage, Event<T>} = 131,
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 132,
 		Nfts: pallet_nfts::{Pallet, Call, Storage, Event<T>} = 133,
+		Dao: pallet_dao::{Pallet, Call, Storage, Event<T>}  = 134,
 
 		// Consensus support.
 		// Authorship must be before session in order to note author in the correct session and era
