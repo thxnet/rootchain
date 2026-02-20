@@ -24,6 +24,8 @@ pkgs.mkShell {
     cargo-watch
     rustToolchain
 
+    sccache
+
     tokei
 
     llvmPackages.clang
@@ -45,6 +47,8 @@ pkgs.mkShell {
   PROTOC_INCLUDE = "${pkgs.protobuf}/include";
 
   LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+
+  RUSTC_WRAPPER = "sccache";
 
   shellHook = ''
     export NIX_PATH="nixpkgs=${pkgs.path}"

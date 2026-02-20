@@ -21,6 +21,7 @@ env:
   MINIO_ACCESS_KEY_ID: ${{ secrets.MINIO_ACCESS_KEY_ID }}
   MINIO_SECRET_ACCESS_KEY: ${{ secrets.MINIO_SECRET_ACCESS_KEY }}
   SCCACHE_BUCKET: sccache
+  SCCACHE_REGION: auto
   SCCACHE_ENDPOINT: ${{ secrets.SCCACHE_ENDPOINT }}
 
 concurrency:
@@ -85,7 +86,8 @@ jobs:
             rootchain.args.AWS_SECRET_ACCESS_KEY=${{ env.MINIO_SECRET_ACCESS_KEY }}
             rootchain.args.SCCACHE_BUCKET=${{ env.SCCACHE_BUCKET }}
             rootchain.args.SCCACHE_ENDPOINT=${{ env.SCCACHE_ENDPOINT }}
-            rootchain.args.SCCACHE_S3_USE_SSL=false
+            rootchain.args.SCCACHE_S3_USE_SSL=true
+            rootchain.args.SCCACHE_REGION=${{ env.SCCACHE_REGION }}
 
           files: |
             ./scripts/ci/dockerfiles/polkadot/docker-bake.hcl
