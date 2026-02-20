@@ -18,7 +18,7 @@ ARG SCCACHE_ENDPOINT
 ARG SCCACHE_S3_USE_SSL
 ARG SCCACHE_REGION
 
-RUN cargo build --locked --release
+RUN cargo build --locked --release && sccache --show-stats
 
 # This is the 2nd stage: a very small image where we copy the THXENT. binary."
 FROM ubuntu as rootchain
