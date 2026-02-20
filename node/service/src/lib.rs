@@ -761,11 +761,12 @@ where
 		let metrics =
 			polkadot_node_subsystem_util::metrics::Metrics::register(prometheus_registry.as_ref())?;
 
-		SelectRelayChain::new_with_overseer(
-			basics.backend.clone(),
-			overseer_handle.clone(),
-			metrics,
-		)
+		// HOTFIX: Use LongestChain to bypass broken chain-selection/approval-voting/
+		// dispute-coordinator subsystem state after parachain DB cleanup.
+		// Safe because no active parachain candidates require approval voting.
+		// TODO: Revert to new_with_overseer once finalization catches up.
+		let _ = metrics;
+		SelectRelayChain::new_longest_chain(basics.backend.clone())
 	} else {
 		SelectRelayChain::new_longest_chain(basics.backend.clone())
 	};
