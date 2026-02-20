@@ -93,3 +93,31 @@ jobs:
             ./scripts/ci/dockerfiles/polkadot/docker-bake.hcl
             ${{ steps.meta.outputs.bake-file }}
           targets: rootchain
+
+      - name: Extract runtime WASM artifacts
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/bake-action@v5
+        with:
+          pull: false
+          push: false
+          set: |
+            wasm-artifacts.args.AWS_ACCESS_KEY_ID=${{ env.MINIO_ACCESS_KEY_ID }}
+            wasm-artifacts.args.AWS_SECRET_ACCESS_KEY=${{ env.MINIO_SECRET_ACCESS_KEY }}
+            wasm-artifacts.args.SCCACHE_BUCKET=${{ env.SCCACHE_BUCKET }}
+            wasm-artifacts.args.SCCACHE_ENDPOINT=${{ env.SCCACHE_ENDPOINT }}
+            wasm-artifacts.args.SCCACHE_S3_USE_SSL=true
+            wasm-artifacts.args.SCCACHE_REGION=${{ env.SCCACHE_REGION }}
+          files: |
+            ./scripts/ci/dockerfiles/polkadot/docker-bake.hcl
+          targets: wasm-artifacts
+
+      - name: Upload WASM artifacts to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ls -lh ./artifacts/*.wasm
+          gh release upload "${{ github.ref_name }}" \
+            ./artifacts/thxnet_runtime.compact.compressed.wasm \
+            ./artifacts/thxnet_testnet_runtime.compact.compressed.wasm \
+            --clobber
