@@ -31,7 +31,7 @@ concurrency:
 jobs:
   image:
     name: Build and publish images
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hetzner]
     strategy:
       fail-fast: false
       matrix:
