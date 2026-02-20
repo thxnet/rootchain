@@ -1,0 +1,24 @@
+{
+  "name": "runtime-upgrade",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "upgrade": "bun run force-runtime-upgrade.ts",
+    "upgrade:mainnet": "NETWORK=mainnet bun run force-runtime-upgrade.ts",
+    "upgrade:testnet": "NETWORK=testnet bun run force-runtime-upgrade.ts",
+    "scan-blocks": "bun run scan-block-times.ts",
+    "scan-detail": "bun run scan-detail.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@polkadot/api": "^16.5.4",
+    "@polkadot/keyring": "^14.0.1",
+    "@polkadot/util": "^14.0.1",
+    "@polkadot/util-crypto": "^14.0.1"
+  }
+}
