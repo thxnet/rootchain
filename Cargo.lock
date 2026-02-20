@@ -5517,6 +5517,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-finality-rescue"
+version = "4.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-grandpa",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-grandpa"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.40#ba87188cce8c0a11c9542d7363cd5ddd46db2740"
@@ -12105,6 +12122,7 @@ dependencies = [
  "pallet-election-provider-support-benchmarking",
  "pallet-elections-phragmen",
  "pallet-fast-unstake",
+ "pallet-finality-rescue",
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
@@ -12223,6 +12241,7 @@ dependencies = [
  "pallet-election-provider-support-benchmarking",
  "pallet-elections-phragmen",
  "pallet-fast-unstake",
+ "pallet-finality-rescue",
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
