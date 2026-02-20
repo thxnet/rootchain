@@ -1737,6 +1737,128 @@ impl Get<Perbill> for NominationPoolsMigrationV4OldPallet {
 	}
 }
 
+/// One-time migration to fix GRANDPA finality deadlock.
+///
+/// Root cause: Fork blocks at #14206448 created stale `pending_standard_changes` in the
+/// GRANDPA client's AuthoritySet. `current_limit()` returns a limit from these stale entries,
+/// `best_containing` can't find any leaf at or before that limit, and finality is permanently
+/// stalled at #14206447.
+///
+/// Fix: Clear all stale GRANDPA state, then schedule a forced authority change via the
+/// public `schedule_change` API. This correctly sets `scheduled_at = current block_number`.
+/// The `on_finalize` in the same block emits the `ForcedChange` consensus log. When the
+/// GRANDPA client processes this log, it creates a brand new `AuthoritySet` with
+/// `pending_standard_changes = ForkTree::new()` and `pending_forced_changes = Vec::new()`,
+/// clearing all stale entries and unblocking finality.
+///
+/// Robustness: This migration uses NO hardcoded set_id values. It reads the current
+/// `CurrentSetId` at runtime and increments by 1 to match the GRANDPA client's behavior
+/// (`apply_forced_changes` does `set_id = self.set_id + 1`). This works correctly as long
+/// as `CurrentSetId` equals the GRANDPA client's `set_id` at the moment the migration runs.
+/// If they are already out of sync (due to previous manual `setStorage` calls that changed
+/// one but not the other), no runtime migration can fix the mismatch — the correct approach
+/// is to stop all manual state changes before deploying this upgrade.
+pub struct FixGrandpaFinalityDeadlock;
+impl frame_support::traits::OnRuntimeUpgrade for FixGrandpaFinalityDeadlock {
+	fn on_runtime_upgrade() -> frame_support::weights::Weight {
+		use frame_support::storage;
+
+		let current_set_id_key = storage::storage_prefix(b"Grandpa", b"CurrentSetId");
+		let pending_change_key = storage::storage_prefix(b"Grandpa", b"PendingChange");
+		let next_forced_key = storage::storage_prefix(b"Grandpa", b"NextForced");
+		let stalled_key = storage::storage_prefix(b"Grandpa", b"Stalled");
+
+		let block_number = <frame_system::Pallet<Runtime>>::block_number();
+
+		// Guard: only run while finality is still stuck (within reasonable range).
+		// At ~2 min/block (BABE backoff), 14_250_000 gives ~60 days of buffer.
+		if block_number > 14_250_000 {
+			log::info!(
+				target: "runtime",
+				"GRANDPA fix: block #{} past expected range, skipping.",
+				block_number,
+			);
+			return <Runtime as frame_system::Config>::DbWeight::get().reads(1)
+		}
+
+		// Step 1: Clear ALL stale GRANDPA state from previous fix attempts.
+		// - PendingChange with wrong scheduled_at (set via setStorage, never triggers
+		//   because on_finalize uses == comparison, not >=)
+		// - NextForced that might block schedule_change with TooSoon error
+		// - Stalled from any failed note_stalled attempt (may have malformed encoding)
+		if storage::unhashed::exists(&pending_change_key) {
+			log::info!(target: "runtime", "GRANDPA fix: clearing stale PendingChange");
+		}
+		storage::unhashed::kill(&pending_change_key);
+		storage::unhashed::kill(&next_forced_key);
+		storage::unhashed::kill(&stalled_key);
+
+		// Step 2: Get current authorities.
+		let authorities = pallet_grandpa::Pallet::<Runtime>::grandpa_authorities();
+		if authorities.is_empty() {
+			log::error!(target: "runtime", "GRANDPA fix: no authorities found!");
+			return <Runtime as frame_system::Config>::DbWeight::get().reads_writes(2, 3)
+		}
+
+		// Step 3: Schedule a forced authority change.
+		// schedule_change correctly sets scheduled_at = current block_number.
+		// With delay=0, on_finalize in the same block will:
+		//   1. block_number == scheduled_at → emit ForcedChange(median, ScheduledChange) log
+		//   2. block_number == scheduled_at + 0 → set_grandpa_authorities + kill PendingChange
+		//
+		// The GRANDPA client then:
+		//   1. Detects ForcedChange log during block import
+		//   2. apply_forced_changes: effective_number == best_number (delay=0) → applies
+		//   3. Dependency check: fork blocks effective(14206448) <= median(14206447)? NO → passes
+		//   4. Creates new AuthoritySet { set_id: old+1, pending_*: empty } → deadlock broken
+		let median_finalized: BlockNumber = 14_206_447;
+		let result = pallet_grandpa::Pallet::<Runtime>::schedule_change(
+			authorities.clone(),
+			0u32,
+			Some(median_finalized),
+		);
+
+		match result {
+			Ok(()) => {
+				// Step 4: Align runtime CurrentSetId with what the client will have.
+				//
+				// on_finalize does NOT increment CurrentSetId for forced changes.
+				// The GRANDPA client does: new_set_id = self.set_id + 1
+				// We do the same on the runtime side: CurrentSetId += 1
+				//
+				// This is correct as long as CurrentSetId == client's set_id before this
+				// migration. If they've already diverged due to manual setStorage, stop
+				// all manual changes and use setStorage to re-align them before deploying.
+				let current_set_id: u64 = storage::unhashed::get_or_default(&current_set_id_key);
+				let new_set_id: u64 = current_set_id + 1;
+				storage::unhashed::put(&current_set_id_key, &new_set_id);
+
+				log::info!(
+					target: "runtime",
+					"GRANDPA finality fix applied at block #{}: ForcedChange(median={}) \
+					 scheduled with {} authorities, CurrentSetId {} -> {}",
+					block_number,
+					median_finalized,
+					authorities.len(),
+					current_set_id,
+					new_set_id,
+				);
+
+				<Runtime as frame_system::Config>::DbWeight::get().reads_writes(5, 6)
+			},
+			Err(e) => {
+				log::error!(
+					target: "runtime",
+					"GRANDPA finality fix FAILED at block #{}: {:?}",
+					block_number,
+					e,
+				);
+				<Runtime as frame_system::Config>::DbWeight::get().reads_writes(2, 3)
+			},
+		}
+	}
+}
+
 /// All migrations that will run on the next runtime upgrade.
 ///
 /// Should be cleared after every release.
@@ -1745,6 +1867,7 @@ pub type Migrations = (
 		Runtime,
 		NominationPoolsMigrationV4OldPallet,
 	>,
+	FixGrandpaFinalityDeadlock,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
