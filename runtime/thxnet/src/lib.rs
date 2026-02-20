@@ -136,7 +136,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("thxnet"),
 	impl_name: create_runtime_str!("thxlab"),
 	authoring_version: 0,
-	spec_version: 94000004,
+	spec_version: 94000005,
 	impl_version: 0,
 	#[cfg(not(feature = "disable-runtime-api"))]
 	apis: RUNTIME_API_VERSIONS,
@@ -1184,6 +1184,16 @@ impl pallet_dao::Config for Runtime {
 	type Vote = u128;
 }
 
+parameter_types! {
+	/// Minimum blocks between rescue_finality calls (~10 min at 6s/block).
+	pub const RescueCooldown: BlockNumber = 100;
+}
+
+impl pallet_finality_rescue::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RescueCooldown = RescueCooldown;
+}
+
 impl pallet_nfts::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type CollectionId = u32;
@@ -1620,6 +1630,7 @@ construct_runtime! {
 		Assets: pallet_assets::{Pallet, Call, Storage, Event<T>} = 132,
 		Nfts: pallet_nfts::{Pallet, Call, Storage, Event<T>} = 133,
 		Dao: pallet_dao::{Pallet, Call, Storage, Event<T>}  = 134,
+		FinalityRescue: pallet_finality_rescue::{Pallet, Call, Storage, Event<T>} = 135,
 
 		// Consensus support.
 		// Authorship must be before session in order to note author in the correct session and era

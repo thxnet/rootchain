@@ -118,6 +118,7 @@ members = [
     "node/zombienet-backchannel",
     "rpc",
     "pallets/dao",
+    "pallets/finality-rescue",
     "parachain",
     "parachain/test-parachains",
     "parachain/test-parachains/adder",
