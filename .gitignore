@@ -10,8 +10,10 @@ polkadot.*
 !polkadot.service
 .DS_Store
 .env
+.env.local
 
 .direnv/
 
 result
 
+.claude/settings.local.json
