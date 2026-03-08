@@ -31,7 +31,7 @@ concurrency:
 jobs:
   image:
     name: Build and publish images
-    runs-on: [self-hosted, hetzner]
+    runs-on: [hetzner]
     strategy:
       fail-fast: false
       matrix:
