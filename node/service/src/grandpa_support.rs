@@ -277,15 +277,7 @@ pub(crate) fn thxnet_hard_forks() -> Vec<grandpa::AuthoritySetHardFork<Block>> {
 				set_id,
 				block: (hash, number),
 				authorities: authorities.clone(),
-				last_finalized: Some((
-					Hash::from_str(
-						"74e947074c278561bfb924df4a173735c827b53a6f0f0ac8416c1ac99eed0150",
-					)
-					.expect(
-						"hard fork hashes are static and they should be carefully defined; qed.",
-					),
-					14_205_952,
-				)),
+				last_finalized: Some(14_205_952),
 			}
 		})
 		.collect()
