@@ -24,6 +24,12 @@ target "rootchain" {
   target     = "rootchain"
   tags       = ["${CONTAINER_REGISTRY}/rootchain:${TAG}"]
   platforms  = ["linux/amd64"]
+  cache-from = [
+    "type=registry,ref=${CONTAINER_REGISTRY}/rootchain:buildcache"
+  ]
+  cache-to = [
+    "type=registry,ref=${CONTAINER_REGISTRY}/rootchain:buildcache,mode=max"
+  ]
   args = {
     RUSTC_WRAPPER         = "/usr/bin/sccache"
     AWS_ACCESS_KEY_ID     = null
@@ -52,6 +58,12 @@ target "wasm-artifacts" {
   target     = "wasm-artifacts"
   platforms  = ["linux/amd64"]
   output     = ["type=local,dest=./artifacts"]
+  cache-from = [
+    "type=registry,ref=${CONTAINER_REGISTRY}/rootchain:buildcache"
+  ]
+  cache-to = [
+    "type=registry,ref=${CONTAINER_REGISTRY}/rootchain:buildcache,mode=max"
+  ]
   args = {
     RUSTC_WRAPPER         = "/usr/bin/sccache"
     AWS_ACCESS_KEY_ID     = null
