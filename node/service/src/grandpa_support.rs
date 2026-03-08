@@ -215,6 +215,82 @@ pub(crate) fn kusama_hard_forks() -> Vec<grandpa::AuthoritySetHardFork<Block>> {
 		.collect()
 }
 
+/// GRANDPA hard forks for THX Network mainnet.
+///
+/// During the finality deadlock incident (2026-02-20), chaotic setId
+/// transitions (987→988→990→992→991→992) occurred at blocks 14,205,952
+/// through 14,206,626. The migration at block 14,206,625 did NOT emit
+/// a ForcedChange consensus log. New nodes syncing through this area
+/// with state pruning enabled cannot verify these transitions, causing
+/// permanent finality deadlock.
+///
+/// These hard fork entries provide the known-good authority set at each
+/// setId transition, allowing GRANDPA to bypass state-dependent verification.
+#[cfg(feature = "full-node")]
+pub(crate) fn thxnet_hard_forks() -> Vec<grandpa::AuthoritySetHardFork<Block>> {
+	use sp_core::crypto::Ss58Codec;
+	use std::str::FromStr;
+
+	// (set_id, block_hash, block_number) — each entry is the first block where this setId appeared
+	let forks: Vec<(u64, &str, u32)> = vec![
+		(988, "b24efda871e72649a6512d418e75b5e5e5921307ee04564042f3bd1cdd721d04", 14_206_564),
+		(990, "c644bb6f30e56c2a8748b38bd3713c6923b6c535923f20fef339c93e83b17c75", 14_206_572),
+		(991, "8c0c9f7854a60d23c34e2f1b3c0084ae19427cda17b916d56070662b33018a52", 14_206_589),
+		(992, "2b86dabc7f9f2c0169d25cfeb9e7766a18ab6ed2fbde00022d9b729d85ac96b3", 14_206_590),
+		(991, "323b1605b3030e79bae563f64e5c7f5cad9147632a0230764744d6f04e190b9f", 14_206_591),
+		(992, "9db27f4ec24dc50ca5c314a76f55384748ee6d0a1af3f719ec07166238a8200c", 14_206_626),
+	];
+
+	// Post-incident GRANDPA authority set — SS58 addresses (prefix 42)
+	// Verified from both archive-001 and archive-002 at block #14,210,000
+	let authorities: Vec<&str> = vec![
+		"5DQjEK2cWN2Qnp5sFdJQAoQ5RLaveyCxYpCbc8kWK2mbkrHi",
+		"5CLCUaSjUhmukZEsp9bTgWi6gBDCMEVLXebN79U46q68Qzh1",
+		"5FMYd9YVje234kxfCwZ5UmWoEQ6Zjz78GjjN3hQLM7SH3wDi",
+		"5CNfCS5SZ6zEu9YtW1HKeyBxWibrwedgd6by4y9W1D2R1NbA",
+		"5CKRFQnViKUtpyEmETsG2TxmzbWHDpGt9n9r1NWEVh9CU4RY",
+		"5FW1LVeZKtrJB8RE3uWSEVsXSyFEkJA6PF5oEeKAnwi8cUMq",
+		"5Dn9oyDjpcm6yp3bNRnsHEDgzxnkRgqvinChpt3WfZScjt48",
+		"5FWBTpBSv4vCR4SC5Q5XT4zGvXF3cAT7AHfe7i45yRdUxwAL",
+		"5Fv7rAvMJaKGEWJr1DNxhn5AeaiPot2TuHNvsCzAk9LyPDLR",
+		"5ECrXnTf7R7W5wF8bv4xJiJYYyQUgnZfGy6uce4t36puANrT",
+	];
+
+	let authorities = authorities
+		.into_iter()
+		.map(|address| {
+			(
+				grandpa_primitives::AuthorityId::from_ss58check(address)
+					.expect("hard fork authority addresses are static and they should be carefully defined; qed."),
+				1,
+			)
+		})
+		.collect::<Vec<_>>();
+
+	forks
+		.into_iter()
+		.map(|(set_id, hash, number)| {
+			let hash = Hash::from_str(hash)
+				.expect("hard fork hashes are static and they should be carefully defined; qed.");
+
+			grandpa::AuthoritySetHardFork {
+				set_id,
+				block: (hash, number),
+				authorities: authorities.clone(),
+				last_finalized: Some((
+					Hash::from_str(
+						"74e947074c278561bfb924df4a173735c827b53a6f0f0ac8416c1ac99eed0150",
+					)
+					.expect(
+						"hard fork hashes are static and they should be carefully defined; qed.",
+					),
+					14_205_952,
+				)),
+			}
+		})
+		.collect()
+}
+
 #[cfg(test)]
 mod tests {
 	use consensus_common::BlockOrigin;

@@ -257,6 +257,9 @@ pub trait IdentifyVariant {
 	/// Returns if this is a configuration for the `Versi` test network.
 	fn is_versi(&self) -> bool;
 
+	/// Returns if this is a configuration for the `THX Network` mainnet.
+	fn is_thxnet(&self) -> bool;
+
 	/// Returns true if this configuration is for a development network.
 	fn is_dev(&self) -> bool;
 }
@@ -279,6 +282,9 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 	}
 	fn is_versi(&self) -> bool {
 		self.id().starts_with("versi") || self.id().starts_with("vrs")
+	}
+	fn is_thxnet(&self) -> bool {
+		self.id().starts_with("thxnet_mainnet")
 	}
 	fn is_dev(&self) -> bool {
 		self.id().ends_with("dev")
@@ -496,6 +502,8 @@ where
 
 	let grandpa_hard_forks = if config.chain_spec.is_kusama() {
 		grandpa_support::kusama_hard_forks()
+	} else if config.chain_spec.is_thxnet() {
+		grandpa_support::thxnet_hard_forks()
 	} else {
 		Vec::new()
 	};
@@ -849,6 +857,8 @@ where
 
 	let grandpa_hard_forks = if config.chain_spec.is_kusama() {
 		grandpa_support::kusama_hard_forks()
+	} else if config.chain_spec.is_thxnet() {
+		grandpa_support::thxnet_hard_forks()
 	} else {
 		Vec::new()
 	};
