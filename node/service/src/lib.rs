@@ -22,6 +22,8 @@ pub mod chain_spec;
 mod grandpa_support;
 mod parachains_db;
 mod relay_chain_selection;
+#[cfg(feature = "full-node")]
+mod thxnet_grandpa_recovery;
 
 #[cfg(feature = "full-node")]
 pub mod overseer;
@@ -258,7 +260,7 @@ pub trait IdentifyVariant {
 	fn is_versi(&self) -> bool;
 
 	/// Returns if this is a configuration for the `THX Network` mainnet.
-	fn is_thxnet(&self) -> bool;
+	fn is_thxnet_mainnet(&self) -> bool;
 
 	/// Returns true if this configuration is for a development network.
 	fn is_dev(&self) -> bool;
@@ -283,7 +285,7 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 	fn is_versi(&self) -> bool {
 		self.id().starts_with("versi") || self.id().starts_with("vrs")
 	}
-	fn is_thxnet(&self) -> bool {
+	fn is_thxnet_mainnet(&self) -> bool {
 		self.id().starts_with("thxnet_mainnet")
 	}
 	fn is_dev(&self) -> bool {
@@ -500,10 +502,36 @@ where
 		client.clone(),
 	);
 
+	// THX Network stuck-node recovery: detect nodes that already imported blocks through
+	// the chaotic area but have GRANDPA finality stuck. Reset aux storage before GRANDPA init.
+	if config.chain_spec.is_thxnet_mainnet() {
+		let info = client.info();
+		if info.finalized_number > 0 &&
+			info.finalized_number <= 14_206_626 &&
+			info.best_number > 14_210_000
+		{
+			thxnet_grandpa_recovery::reset_grandpa_state(
+				&*backend,
+				991, // target set_id matching healthy archive nodes
+				&grandpa_support::thxnet_post_incident_authorities(),
+				info.finalized_number,
+				info.finalized_hash,
+			)?;
+			log::warn!(
+				"🔧 THX Network: Reset GRANDPA state for stuck node \
+				 (finalized=#{}, best=#{})",
+				info.finalized_number,
+				info.best_number,
+			);
+		}
+	}
+
 	let grandpa_hard_forks = if config.chain_spec.is_kusama() {
 		grandpa_support::kusama_hard_forks()
-	} else if config.chain_spec.is_thxnet() {
-		grandpa_support::thxnet_hard_forks()
+	} else if config.chain_spec.is_thxnet_mainnet() {
+		let forks = grandpa_support::thxnet_hard_forks();
+		log::info!("🔧 THX Network: Loading {} GRANDPA hard fork entries", forks.len(),);
+		forks
 	} else {
 		Vec::new()
 	};
@@ -769,12 +797,20 @@ where
 		let metrics =
 			polkadot_node_subsystem_util::metrics::Metrics::register(prometheus_registry.as_ref())?;
 
-		// HOTFIX: Use LongestChain to bypass broken chain-selection/approval-voting/
-		// dispute-coordinator subsystem state after parachain DB cleanup.
-		// Safe because no active parachain candidates require approval voting.
-		// TODO: Revert to new_with_overseer once finalization catches up.
-		let _ = metrics;
-		SelectRelayChain::new_longest_chain(basics.backend.clone())
+		if config.chain_spec.is_thxnet_mainnet() {
+			// HOTFIX (thxnet-only): Use LongestChain to bypass broken chain-selection/
+			// approval-voting/dispute-coordinator subsystem state after parachain DB cleanup.
+			// Safe because no active parachain candidates require approval voting.
+			// TODO: Revert to new_with_overseer once finalization catches up.
+			let _ = metrics;
+			SelectRelayChain::new_longest_chain(basics.backend.clone())
+		} else {
+			SelectRelayChain::new_with_overseer(
+				basics.backend.clone(),
+				overseer_handle.clone(),
+				metrics,
+			)
+		}
 	} else {
 		SelectRelayChain::new_longest_chain(basics.backend.clone())
 	};
@@ -857,11 +893,25 @@ where
 
 	let grandpa_hard_forks = if config.chain_spec.is_kusama() {
 		grandpa_support::kusama_hard_forks()
-	} else if config.chain_spec.is_thxnet() {
-		grandpa_support::thxnet_hard_forks()
+	} else if config.chain_spec.is_thxnet_mainnet() {
+		let forks = grandpa_support::thxnet_hard_forks();
+		log::info!(
+			"🔧 THX Network: Loading {} GRANDPA hard fork entries for warp sync provider",
+			forks.len(),
+		);
+		forks
 	} else {
 		Vec::new()
 	};
+
+	if config.chain_spec.is_thxnet_mainnet() {
+		let shared = import_setup.1.shared_authority_set();
+		log::info!(
+			"🔧 THX Network: GRANDPA init complete — set_id={}, authorities={}",
+			shared.set_id(),
+			shared.current_authorities().len().get(),
+		);
+	}
 
 	let warp_sync = Arc::new(grandpa::warp_proof::NetworkProvider::new(
 		backend.clone(),

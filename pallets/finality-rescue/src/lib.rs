@@ -110,13 +110,13 @@ pub mod pallet {
 			//   2. Apply the change (set_grandpa_authorities + kill PendingChange)
 			pallet_grandpa::Pallet::<T>::schedule_change(authorities, Zero::zero(), Some(median))
 				.map_err(|e| {
-					log::error!(
-						target: "runtime::finality-rescue",
-						"schedule_change failed: {:?}",
-						e,
-					);
-					Error::<T>::ScheduleChangeFailed
-				})?;
+				log::error!(
+					target: "runtime::finality-rescue",
+					"schedule_change failed: {:?}",
+					e,
+				);
+				Error::<T>::ScheduleChangeFailed
+			})?;
 
 			// Step 4: Increment CurrentSetId
 			// on_finalize does NOT increment CurrentSetId for forced changes,

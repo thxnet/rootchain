@@ -1,4 +1,7 @@
-use frame_support::{construct_runtime, parameter_types, traits::{ConstU32, ConstU64}};
+use frame_support::{
+	construct_runtime, parameter_types,
+	traits::{ConstU32, ConstU64},
+};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,

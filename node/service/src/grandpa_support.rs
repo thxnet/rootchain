@@ -215,35 +215,13 @@ pub(crate) fn kusama_hard_forks() -> Vec<grandpa::AuthoritySetHardFork<Block>> {
 		.collect()
 }
 
-/// GRANDPA hard forks for THX Network mainnet.
-///
-/// During the finality deadlock incident (2026-02-20), chaotic setId
-/// transitions (987→988→990→992→991→992) occurred at blocks 14,205,952
-/// through 14,206,626. The migration at block 14,206,625 did NOT emit
-/// a ForcedChange consensus log. New nodes syncing through this area
-/// with state pruning enabled cannot verify these transitions, causing
-/// permanent finality deadlock.
-///
-/// These hard fork entries provide the known-good authority set at each
-/// setId transition, allowing GRANDPA to bypass state-dependent verification.
+/// Post-incident GRANDPA authority set for THX Network mainnet.
+/// 10 validators, verified from both archive-001 and archive-002 at block #14,210,000.
 #[cfg(feature = "full-node")]
-pub(crate) fn thxnet_hard_forks() -> Vec<grandpa::AuthoritySetHardFork<Block>> {
+pub(crate) fn thxnet_post_incident_authorities() -> Vec<(grandpa_primitives::AuthorityId, u64)> {
 	use sp_core::crypto::Ss58Codec;
-	use std::str::FromStr;
 
-	// (set_id, block_hash, block_number) — each entry is the first block where this setId appeared
-	let forks: Vec<(u64, &str, u32)> = vec![
-		(988, "b24efda871e72649a6512d418e75b5e5e5921307ee04564042f3bd1cdd721d04", 14_206_564),
-		(990, "c644bb6f30e56c2a8748b38bd3713c6923b6c535923f20fef339c93e83b17c75", 14_206_572),
-		(991, "8c0c9f7854a60d23c34e2f1b3c0084ae19427cda17b916d56070662b33018a52", 14_206_589),
-		(992, "2b86dabc7f9f2c0169d25cfeb9e7766a18ab6ed2fbde00022d9b729d85ac96b3", 14_206_590),
-		(991, "323b1605b3030e79bae563f64e5c7f5cad9147632a0230764744d6f04e190b9f", 14_206_591),
-		(992, "9db27f4ec24dc50ca5c314a76f55384748ee6d0a1af3f719ec07166238a8200c", 14_206_626),
-	];
-
-	// Post-incident GRANDPA authority set — SS58 addresses (prefix 42)
-	// Verified from both archive-001 and archive-002 at block #14,210,000
-	let authorities: Vec<&str> = vec![
+	let addresses: Vec<&str> = vec![
 		"5DQjEK2cWN2Qnp5sFdJQAoQ5RLaveyCxYpCbc8kWK2mbkrHi",
 		"5CLCUaSjUhmukZEsp9bTgWi6gBDCMEVLXebN79U46q68Qzh1",
 		"5FMYd9YVje234kxfCwZ5UmWoEQ6Zjz78GjjN3hQLM7SH3wDi",
@@ -256,7 +234,7 @@ pub(crate) fn thxnet_hard_forks() -> Vec<grandpa::AuthoritySetHardFork<Block>> {
 		"5ECrXnTf7R7W5wF8bv4xJiJYYyQUgnZfGy6uce4t36puANrT",
 	];
 
-	let authorities = authorities
+	addresses
 		.into_iter()
 		.map(|address| {
 			(
@@ -265,7 +243,43 @@ pub(crate) fn thxnet_hard_forks() -> Vec<grandpa::AuthoritySetHardFork<Block>> {
 				1,
 			)
 		})
-		.collect::<Vec<_>>();
+		.collect()
+}
+
+/// GRANDPA hard forks for THX Network mainnet.
+///
+/// During the finality deadlock incident (2026-02-20), manual `setStorage`
+/// interventions and forced authority changes created chaotic GRANDPA state
+/// at blocks 14,205,952 through 14,206,626. Only 3 real ForcedChange consensus
+/// logs exist in block headers (at 14,206,555, 14,206,564, 14,206,591).
+/// The migration at block 14,206,625 incremented runtime set_id but did NOT
+/// emit a ForcedChange log, causing a client/runtime set_id divergence.
+///
+/// These 4 hard fork entries use the GRANDPA CLIENT's internal set_id values
+/// (987→988→989→990), each incrementing by exactly 1. After all 4, the client
+/// reaches set_id=991, matching the healthy archive nodes on the network.
+///
+/// This is NOT a chain fork — block hashes and the canonical chain are unchanged.
+/// Only the GRANDPA finality gadget's authority tracking is overridden.
+#[cfg(feature = "full-node")]
+pub(crate) fn thxnet_hard_forks() -> Vec<grandpa::AuthoritySetHardFork<Block>> {
+	use std::str::FromStr;
+
+	// (client_set_id, block_hash, block_number)
+	// client_set_id = the GRANDPA client's internal set_id WHEN that block is reached.
+	// After processing all 4 entries: 987 + 4 = 991 (matches archive nodes).
+	let forks: Vec<(u64, &str, u32)> = vec![
+		// Override 1st real ForcedChange log (chaotic incident)
+		(987, "9cd4f37aed551dbb8fc422dea295d832b5efffc0230007c86714cac444bd5cff", 14_206_555),
+		// Override 2nd real ForcedChange log
+		(988, "b24efda871e72649a6512d418e75b5e5e5921307ee04564042f3bd1cdd721d04", 14_206_564),
+		// Override 3rd real ForcedChange log
+		(989, "323b1605b3030e79bae563f64e5c7f5cad9147632a0230764744d6f04e190b9f", 14_206_591),
+		// ADD missing ForcedChange (migration at 14,206,625 failed to emit log)
+		(990, "9db27f4ec24dc50ca5c314a76f55384748ee6d0a1af3f719ec07166238a8200c", 14_206_626),
+	];
+
+	let authorities = thxnet_post_incident_authorities();
 
 	forks
 		.into_iter()
