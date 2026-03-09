@@ -10,7 +10,7 @@
 
 use polkadot_primitives::Hash;
 use sc_client_api::AuxStore;
-use sp_runtime::codec::{Decode, Encode};
+use codec::{Decode, Encode};
 
 /// Aux storage keys matching sc-consensus-grandpa's internal constants.
 const AUTHORITY_SET_KEY: &[u8] = b"grandpa_voters";
