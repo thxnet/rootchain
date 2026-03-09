@@ -51,6 +51,7 @@ pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", 
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.40" }
 pallet-collective = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.40" }
 pallet-dao = { path = "../../pallets/dao", default-features = false }
+pallet-finality-rescue = { path = "../../pallets/finality-rescue", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.40" }
 pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.40" }
 pallet-election-provider-multi-phase = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.40" }
@@ -201,6 +202,7 @@ std = [
     "pallet-assets/std",
     "pallet-nfts/std",
     "pallet-nfts-runtime-api/std",
+    "pallet-finality-rescue/std",
 ]
 runtime-benchmarks = [
     "runtime-common/runtime-benchmarks",
@@ -288,6 +290,7 @@ try-runtime = [
     "pallet-assets/try-runtime",
     "pallet-asset-tx-payment/try-runtime",
     "pallet-nfts/try-runtime",
+    "pallet-finality-rescue/try-runtime",
 ]
 # When enabled, the runtime API will not be build.
 #

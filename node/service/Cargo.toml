@@ -67,6 +67,7 @@ frame-support = { git = "https://github.com/paritytech/substrate", branch = "pol
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40" }
 
 # External Crates
+codec = { package = "parity-scale-codec", version = "3.2.2" }
 futures = "0.3.21"
 hex-literal = "0.3.4"
 gum = { package = "tracing-gum", path = "../gum/" }

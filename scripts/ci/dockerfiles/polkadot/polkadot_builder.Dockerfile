@@ -16,8 +16,16 @@ ARG AWS_SECRET_ACCESS_KEY
 ARG SCCACHE_BUCKET
 ARG SCCACHE_ENDPOINT
 ARG SCCACHE_S3_USE_SSL
+ARG SCCACHE_REGION
 
-RUN cargo build --locked --release
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
+    cargo build --locked --release && sccache --show-stats
+
+# Stage: export compact compressed WASM runtime artifacts
+FROM scratch as wasm-artifacts
+COPY --from=builder /build/target/release/wbuild/thxnet-runtime/thxnet_runtime.compact.compressed.wasm /
+COPY --from=builder /build/target/release/wbuild/thxnet-testnet-runtime/thxnet_testnet_runtime.compact.compressed.wasm /
 
 # This is the 2nd stage: a very small image where we copy the THXENT. binary."
 FROM ubuntu as rootchain
