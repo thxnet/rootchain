@@ -10,7 +10,7 @@
     "scan-detail": "bun run scan-detail.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "^1.3.10"
   },
   "peerDependencies": {
     "typescript": "^5"

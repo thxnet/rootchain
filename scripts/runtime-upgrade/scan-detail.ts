@@ -18,8 +18,8 @@ import { resolveNetwork } from "./networks";
 const network = resolveNetwork();
 
 async function main() {
-  const centerBlock = parseInt(process.argv[2] || "");
-  const range = parseInt(process.argv[3] || "30");
+  const centerBlock = parseInt(process.argv[2] || "", 10);
+  const range = parseInt(process.argv[3] || "30", 10);
 
   if (isNaN(centerBlock)) {
     console.error("Usage: bun run scan-detail.ts <center_block> [range]");
@@ -42,6 +42,8 @@ async function main() {
   console.log(`Connecting to: ${network.rpcEndpoint}`);
   const provider = new WsProvider(network.rpcEndpoint);
   const api = await ApiPromise.create({ provider });
+
+  try {
 
   console.log(`\n=== Blocks #${start} - #${end} (center: #${centerBlock}) ===`);
   console.log("Block      | Block Time | Timestamp (UTC)");
@@ -69,8 +71,9 @@ async function main() {
 
     prevTs = ts;
   }
-
-  await api.disconnect();
+  } finally {
+    await api.disconnect();
+  }
 }
 
 main().catch((e) => {

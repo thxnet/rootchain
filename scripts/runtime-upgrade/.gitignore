@@ -6,6 +6,9 @@ out
 dist
 *.tgz
 
+# WASM binaries (can be ~3MB each, should not be committed)
+*.wasm
+
 # code coverage
 coverage
 *.lcov

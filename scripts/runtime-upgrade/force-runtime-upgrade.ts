@@ -85,177 +85,191 @@ async function main() {
     : new WsProvider(network.rpcEndpoint);
   const api = await ApiPromise.create({ provider });
 
-  const currentVersion = api.runtimeVersion;
-  const currentSpecVersion = currentVersion.specVersion.toNumber();
-  console.log(
-    `Connected: spec=${currentVersion.specName.toString()}, version=${currentSpecVersion}`,
-  );
+  try {
+    const currentVersion = api.runtimeVersion;
+    const currentSpecVersion = currentVersion.specVersion.toNumber();
+    console.log(
+      `Connected: spec=${currentVersion.specName.toString()}, version=${currentSpecVersion}`,
+    );
 
-  // 3. Create sudo keypair
-  const keyring = new Keyring({ type: "sr25519" });
-  const sudoKey = keyring.addFromUri(SUDO_SURI);
-  console.log(`Sudo account: ${sudoKey.address}`);
+    // 3. Create sudo keypair
+    const keyring = new Keyring({ type: "sr25519" });
+    const sudoKey = keyring.addFromUri(SUDO_SURI);
+    console.log(`Sudo account: ${sudoKey.address}`);
 
-  // 4. Verify sudo account matches on-chain sudo key
-  const onChainSudo = await api.query.sudo.key();
-  const onChainSudoStr = onChainSudo.toString();
-  console.log(`On-chain sudo: ${onChainSudoStr}`);
+    // 4. Verify sudo account matches on-chain sudo key
+    const onChainSudo = await api.query.sudo.key();
+    const onChainSudoStr = onChainSudo.toString();
+    console.log(`On-chain sudo: ${onChainSudoStr}`);
 
-  if (sudoKey.address !== onChainSudoStr) {
-    console.error("ERROR: Sudo account mismatch!");
-    console.error(`  Our account:   ${sudoKey.address}`);
-    console.error(`  On-chain sudo: ${onChainSudoStr}`);
-    process.exit(1);
-  }
-  console.log("Sudo account verified OK.");
+    if (sudoKey.address !== onChainSudoStr) {
+      console.error("ERROR: Sudo account mismatch!");
+      console.error(`  Our account:   ${sudoKey.address}`);
+      console.error(`  On-chain sudo: ${onChainSudoStr}`);
+      process.exit(1);
+    }
+    console.log("Sudo account verified OK.");
 
-  // 5. Build system.setCode call
-  const setCodeCall = api.tx.system.setCode(wasmHex);
+    // 5. Build system.setCode call
+    const setCodeCall = api.tx.system.setCode(wasmHex);
 
-  // 6. Wrap with sudo.sudoUncheckedWeight — large weight to bypass limits
-  const weight = {
-    refTime: 1_000_000_000_000,
-    proofSize: 1_000_000_000_000,
-  };
-  const sudoCall = api.tx.sudo.sudoUncheckedWeight(setCodeCall, weight);
-  console.log(
-    `Extrinsic method: ${sudoCall.method.section}.${sudoCall.method.method}`,
-  );
+    // 6. Wrap with sudo.sudoUncheckedWeight — large weight to bypass limits
+    const weight = {
+      refTime: 1_000_000_000_000,
+      proofSize: 1_000_000_000_000,
+    };
+    const sudoCall = api.tx.sudo.sudoUncheckedWeight(setCodeCall, weight);
+    console.log(
+      `Extrinsic method: ${sudoCall.method.section}.${sudoCall.method.method}`,
+    );
 
-  // 7. Submit transaction
-  console.log("Submitting runtime upgrade transaction...");
+    // 7. Submit transaction
+    console.log("Submitting runtime upgrade transaction...");
 
-  const isWs = network.rpcEndpoint.startsWith("ws");
+    const isWs = network.rpcEndpoint.startsWith("ws");
 
-  if (isWs) {
-    // WebSocket: use subscription to wait for InBlock
-    await new Promise<void>((resolve, reject) => {
-      sudoCall
-        .signAndSend(sudoKey, { nonce: -1 }, (result) => {
-          console.log(`  Status: ${result.status.type}`);
+    if (isWs) {
+      // WebSocket: use subscription to wait for InBlock
+      await new Promise<void>((resolve, reject) => {
+        sudoCall
+          .signAndSend(sudoKey, { nonce: -1 }, (result) => {
+            console.log(`  Status: ${result.status.type}`);
 
-          if (result.status.isInBlock) {
+            if (result.status.isInBlock) {
+              console.log(
+                `  Included in block: ${result.status.asInBlock.toHex()}`,
+              );
+
+              // Check for sudo.Sudid event to confirm success
+              const sudoEvent = result.events.find(({ event }) =>
+                api.events.sudo.Sudid.is(event),
+              );
+              if (sudoEvent) {
+                const dispatchResult = sudoEvent.event.data[0];
+                if (dispatchResult && "isOk" in dispatchResult) {
+                  if ((dispatchResult as { isOk: boolean }).isOk) {
+                    console.log("  Sudo dispatch: OK");
+                  } else {
+                    console.error(
+                      `  Sudo dispatch ERROR: ${(dispatchResult as unknown as { asErr: { toString(): string } }).asErr.toString()}`,
+                    );
+                  }
+                }
+              }
+
+              // Check for system.CodeUpdated event
+              const codeUpdated = result.events.find(({ event }) =>
+                api.events.system.CodeUpdated.is(event),
+              );
+              if (codeUpdated) {
+                console.log("  system.CodeUpdated event detected!");
+              }
+
+              resolve();
+            } else if (result.status.isDropped || result.status.isInvalid) {
+              reject(new Error(`Transaction ${result.status.type}`));
+            }
+          })
+          .catch(reject);
+      });
+    } else {
+      // HTTP: no subscription support, submit and poll for inclusion
+      const txHash = await sudoCall.signAndSend(sudoKey, { nonce: -1 });
+      console.log(`  Transaction hash: ${txHash.toHex()}`);
+      console.log("  Polling for block inclusion (HTTP mode)...");
+
+      const MAX_ATTEMPTS = 10;
+      const POLL_INTERVAL_MS = 6_000;
+      let found = false;
+      let lastCheckedBlock = 0;
+
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+        const latestHeader = await api.rpc.chain.getHeader();
+        const latestNum = latestHeader.number.toNumber();
+
+        for (let blockNum = lastCheckedBlock + 1; blockNum <= latestNum; blockNum++) {
+          const blockHash = await api.rpc.chain.getBlockHash(blockNum);
+          const block = await api.rpc.chain.getBlock(blockHash);
+          const txInBlock = block.block.extrinsics.some(
+            (ext) => ext.hash.toHex() === txHash.toHex(),
+          );
+
+          if (txInBlock) {
             console.log(
-              `  Included in block: ${result.status.asInBlock.toHex()}`,
+              `  Included in block #${blockNum} (attempt ${attempt})`,
             );
 
-            // Check for sudo.Sudid event to confirm success
-            const sudoEvent = result.events.find(({ event }) =>
-              api.events.sudo.Sudid.is(event),
+            // Check events for this block
+            const apiAt = await api.at(blockHash);
+            const eventsRaw = await (apiAt.query as unknown as {
+              system: { events: () => Promise<Array<{ event: { data: Array<Record<string, unknown>> } }>> };
+            }).system.events();
+            const sudoEvent = eventsRaw.find(({ event }) =>
+              api.events.sudo!.Sudid!.is(event as never),
             );
             if (sudoEvent) {
-              const dispatchResult = (sudoEvent.event.data as any)[0];
-              if (dispatchResult.isOk) {
-                console.log("  Sudo dispatch: OK");
-              } else {
-                console.error(
-                  `  Sudo dispatch ERROR: ${dispatchResult.asErr.toString()}`,
-                );
+              const dispatchResult = sudoEvent.event.data[0];
+              if (dispatchResult && "isOk" in dispatchResult) {
+                if (dispatchResult["isOk"]) {
+                  console.log("  Sudo dispatch: OK");
+                } else {
+                  console.error(
+                    `  Sudo dispatch ERROR: ${(dispatchResult as unknown as { asErr: { toString(): string } }).asErr.toString()}`,
+                  );
+                }
               }
             }
-
-            // Check for system.CodeUpdated event
-            const codeUpdated = result.events.find(({ event }) =>
-              api.events.system.CodeUpdated.is(event),
+            const codeUpdated = eventsRaw.find(({ event }) =>
+              api.events.system!.CodeUpdated!.is(event as never),
             );
             if (codeUpdated) {
               console.log("  system.CodeUpdated event detected!");
             }
 
-            resolve();
-          } else if (result.status.isDropped || result.status.isInvalid) {
-            reject(new Error(`Transaction ${result.status.type}`));
+            found = true;
+            break;
           }
-        })
-        .catch(reject);
-    });
-  } else {
-    // HTTP: no subscription support, submit and poll for inclusion
-    const txHash = await sudoCall.signAndSend(sudoKey, { nonce: -1 });
-    console.log(`  Transaction hash: ${txHash.toHex()}`);
-    console.log("  Polling for block inclusion (HTTP mode)...");
+        }
 
-    const MAX_ATTEMPTS = 10;
-    const POLL_INTERVAL_MS = 6_000;
-    let found = false;
+        if (found) break;
 
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-      const latestHeader = await api.rpc.chain.getHeader();
-      const latestHash = await api.rpc.chain.getBlockHash(
-        latestHeader.number.toNumber(),
-      );
-      const latestBlock = await api.rpc.chain.getBlock(latestHash);
-      const txInBlock = latestBlock.block.extrinsics.some(
-        (ext) => ext.hash.toHex() === txHash.toHex(),
-      );
-
-      if (txInBlock) {
+        lastCheckedBlock = latestNum;
         console.log(
-          `  Included in block #${latestHeader.number.toNumber()} (attempt ${attempt})`,
+          `  Not yet included (attempt ${attempt}/${MAX_ATTEMPTS}, latest block #${latestNum})`,
         );
-
-        // Check events for this block
-        const apiAt = await api.at(latestHash);
-        const events = await apiAt.query.system.events();
-        const sudoEvent = events.find(({ event }) =>
-          api.events.sudo.Sudid.is(event),
-        );
-        if (sudoEvent) {
-          const dispatchResult = (sudoEvent.event.data as any)[0];
-          if (dispatchResult.isOk) {
-            console.log("  Sudo dispatch: OK");
-          } else {
-            console.error(
-              `  Sudo dispatch ERROR: ${dispatchResult.asErr.toString()}`,
-            );
-          }
-        }
-        const codeUpdated = events.find(({ event }) =>
-          api.events.system.CodeUpdated.is(event),
-        );
-        if (codeUpdated) {
-          console.log("  system.CodeUpdated event detected!");
-        }
-
-        found = true;
-        break;
       }
 
+      if (!found) {
+        console.warn(
+          "  Transaction not found after polling. It may still be pending — check block explorer.",
+        );
+      }
+    }
+
+    // 8. Verify runtime version changed
+    console.log("Verifying runtime version...");
+    const newVersion = await api.rpc.state.getRuntimeVersion();
+    const newSpecVersion = newVersion.specVersion.toNumber();
+    console.log(`Runtime version after upgrade: spec=${newSpecVersion}`);
+
+    if (newSpecVersion > currentSpecVersion) {
       console.log(
-        `  Not yet included (attempt ${attempt}/${MAX_ATTEMPTS}, block #${latestHeader.number.toNumber()})`,
+        `Runtime upgrade SUCCESS! (${currentSpecVersion} -> ${newSpecVersion})`,
+      );
+    } else if (newSpecVersion === currentSpecVersion) {
+      console.log(
+        "Runtime version unchanged — check block explorer for tx status.",
+      );
+      console.log("  The upgrade may need more time or may have failed.");
+    } else {
+      console.log(
+        `WARNING: Runtime version decreased (${currentSpecVersion} -> ${newSpecVersion}). This is unexpected.`,
       );
     }
-
-    if (!found) {
-      console.warn(
-        "  Transaction not found after polling. It may still be pending — check block explorer.",
-      );
-    }
+  } finally {
+    await api.disconnect();
   }
-
-  // 8. Verify runtime version changed
-  console.log("Verifying runtime version...");
-  const newVersion = await api.rpc.state.getRuntimeVersion();
-  const newSpecVersion = newVersion.specVersion.toNumber();
-  console.log(`Runtime version after upgrade: spec=${newSpecVersion}`);
-
-  if (newSpecVersion > currentSpecVersion) {
-    console.log(
-      `Runtime upgrade SUCCESS! (${currentSpecVersion} -> ${newSpecVersion})`,
-    );
-  } else if (newSpecVersion === currentSpecVersion) {
-    console.log(
-      "Runtime version unchanged — check block explorer for tx status.",
-    );
-    console.log("  The upgrade may need more time or may have failed.");
-  } else {
-    console.log(
-      `WARNING: Runtime version decreased (${currentSpecVersion} -> ${newSpecVersion}). This is unexpected.`,
-    );
-  }
-
-  await api.disconnect();
 }
 
 main().catch((e) => {

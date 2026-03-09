@@ -1,0 +1,24 @@
+{
+  "name": "chain-sync",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "backup": "bun run src/cli.ts backup",
+    "backup:mainnet": "NETWORK=mainnet bun run src/cli.ts backup",
+    "backup:testnet": "NETWORK=testnet bun run src/cli.ts backup",
+    "restore": "bun run src/cli.ts restore",
+    "status": "bun run src/cli.ts status",
+    "migrate": "bun run src/cli.ts migrate"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.10"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@polkadot/api": "^16.5.4",
+    "@polkadot/types": "^16.5.4",
+    "@polkadot/util": "^14.0.1"
+  }
+}

@@ -16,7 +16,7 @@ import { resolveNetwork } from "./networks";
 
 const network = resolveNetwork();
 
-const RANGE = parseInt(process.argv[3] || "5000");
+const RANGE = parseInt(process.argv[3] || "5000", 10);
 
 // Normal BABE block time = 6s. Flag anything above this threshold.
 const ANOMALY_THRESHOLD_MS = 12_000; // 2x normal
@@ -27,10 +27,12 @@ async function main() {
   const provider = new WsProvider(network.rpcEndpoint);
   const api = await ApiPromise.create({ provider });
 
+  try {
+
   // Resolve END_BLOCK: CLI arg or latest block from chain
   let END_BLOCK: number;
   if (process.argv[2]) {
-    END_BLOCK = parseInt(process.argv[2]);
+    END_BLOCK = parseInt(process.argv[2], 10);
   } else {
     const latestHeader = await api.rpc.chain.getHeader();
     END_BLOCK = latestHeader.number.toNumber();
@@ -162,7 +164,6 @@ async function main() {
 
   if (anomalies.length === 0) {
     console.log("  No anomalies found.");
-    await api.disconnect();
     return;
   }
 
@@ -230,8 +231,9 @@ async function main() {
     }
     console.log("");
   }
-
-  await api.disconnect();
+  } finally {
+    await api.disconnect();
+  }
 }
 
 main().catch((e) => {
