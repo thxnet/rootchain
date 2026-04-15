@@ -19,6 +19,7 @@
 #![deny(unused_results)]
 
 pub mod chain_spec;
+pub mod chain_spec_fork;
 mod grandpa_support;
 mod parachains_db;
 mod relay_chain_selection;

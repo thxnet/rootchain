@@ -24,6 +24,8 @@ mod cli;
 mod command;
 #[cfg(feature = "cli")]
 mod error;
+#[cfg(feature = "cli")]
+mod fork_genesis_cmd;
 #[cfg(all(feature = "hostperfcheck", build_type = "release"))]
 mod host_perf_check;
 
@@ -40,6 +42,10 @@ pub use cli::*;
 
 #[cfg(feature = "cli")]
 pub use command::*;
+
+// ForkGenesisCmd is accessed via the `fork_genesis_cmd` module (declared above).
+// No pub re-export needed: cli.rs references it as fork_genesis_cmd::ForkGenesisCmd,
+// and command.rs uses it through Subcommand::ForkGenesis.
 
 #[cfg(feature = "cli")]
 pub use sc_cli::{Error, Result};

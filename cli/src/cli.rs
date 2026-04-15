@@ -16,6 +16,7 @@
 
 //! Polkadot CLI library.
 
+use crate::fork_genesis_cmd;
 use clap::Parser;
 
 #[allow(missing_docs)]
@@ -32,6 +33,9 @@ pub enum Subcommand {
 
 	/// Export the state of a given block into a chain spec.
 	ExportState(sc_cli::ExportStateCmd),
+
+	/// Export a filtered + freshly-seeded fork genesis chain-spec.
+	ForkGenesis(fork_genesis_cmd::ForkGenesisCmd),
 
 	/// Import blocks.
 	ImportBlocks(sc_cli::ImportBlocksCmd),

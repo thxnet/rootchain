@@ -179,7 +179,7 @@ pub fn wococo_config() -> Result<RococoChainSpec, String> {
 	feature = "westend-native",
 	feature = "polkadot-native"
 ))]
-fn default_parachains_host_configuration(
+pub(crate) fn default_parachains_host_configuration(
 ) -> polkadot_runtime_parachains::configuration::HostConfiguration<polkadot_primitives::BlockNumber>
 {
 	use polkadot_primitives::{MAX_CODE_SIZE, MAX_POV_SIZE};
@@ -252,7 +252,7 @@ fn polkadot_session_keys(
 }
 
 #[cfg(feature = "polkadot-native")]
-fn thxnet_session_keys(
+pub(crate) fn thxnet_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
@@ -271,7 +271,7 @@ fn thxnet_session_keys(
 }
 
 #[cfg(feature = "polkadot-native")]
-fn thxnet_testnet_session_keys(
+pub(crate) fn thxnet_testnet_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,

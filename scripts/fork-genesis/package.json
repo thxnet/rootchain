@@ -1,0 +1,16 @@
+{
+  "name": "fork-genesis",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@polkadot/api": "^16.5.4",
+    "@polkadot/types": "^16.5.4",
+    "@polkadot/util": "^14.0.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.10"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

@@ -16,4 +16,9 @@ polkadot.*
 
 result
 
-.claude/settings.local.json
+.claude/
+
+/.agent-team-waves/
+.agent-team-waves-active
+
+node_modules/

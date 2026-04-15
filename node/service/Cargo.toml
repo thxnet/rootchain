@@ -52,6 +52,7 @@ sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch 
 sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40" }
 sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40" }
 sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40" }
+sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40" }
 sp-state-machine = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40" }
 
 # Substrate Pallets

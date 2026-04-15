@@ -181,10 +181,10 @@ mod tests {
 		) -> sp_blockchain::Result<()> {
 			let mut data = self.data.lock().unwrap();
 			for del_key in delete {
-				data.remove(*del_key);
+				let _ = data.remove(*del_key);
 			}
 			for (key, value) in insert {
-				data.insert(key.to_vec(), value.to_vec());
+				let _ = data.insert(key.to_vec(), value.to_vec());
 			}
 			Ok(())
 		}

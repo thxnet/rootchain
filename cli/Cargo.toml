@@ -18,7 +18,12 @@ clap = { version = "4.0.9", features = ["derive"], optional = true }
 log = "0.4.17"
 thiserror = "1.0.31"
 futures = "0.3.21"
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
+serde_json = "1.0.81"
 pyro = { package = "pyroscope", version = "0.3.1", optional = true }
+
+polkadot-primitives = { path = "../primitives", optional = true }
+polkadot-runtime-parachains = { path = "../runtime/parachains", optional = true }
 
 service = { package = "polkadot-service", path = "../node/service", default-features = false, optional = true }
 polkadot-client = { path = "../node/client", optional = true }
@@ -28,6 +33,8 @@ polkadot-performance-test = { path = "../node/test/performance-test", optional =
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40" }
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40" }
 sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40", optional = true }
+sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.40", optional = true }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", optional = true , branch = "polkadot-v0.9.40" }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate", optional = true , branch = "polkadot-v0.9.40" }
 sc-cli = { git = "https://github.com/paritytech/substrate", optional = true , branch = "polkadot-v0.9.40" }
@@ -53,6 +60,8 @@ cli = [
 	"try-runtime-cli",
 	"polkadot-client",
 	"polkadot-node-core-pvf",
+	"sp-runtime",
+	"sc-client-api",
 ]
 runtime-benchmarks = [
 	"service/runtime-benchmarks",
@@ -68,7 +77,11 @@ hostperfcheck = ["polkadot-performance-test"]
 # Configure the native runtimes to use. Polkadot is enabled by default.
 #
 # Validators require the native runtime currently
-polkadot-native = ["service/polkadot-native"]
+polkadot-native = [
+	"service/polkadot-native",
+	"polkadot-primitives",
+	"polkadot-runtime-parachains",
+]
 kusama-native = ["service/kusama-native"]
 westend-native = ["service/westend-native"]
 rococo-native = ["service/rococo-native"]

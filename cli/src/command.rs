@@ -442,6 +442,21 @@ pub fn run() -> Result<()> {
 				Ok((cmd.run(client, config.chain_spec).map_err(Error::SubstrateCli), task_manager))
 			})?)
 		},
+		Some(Subcommand::ForkGenesis(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			let chain_spec = &runner.config().chain_spec;
+
+			set_default_ss58_version(chain_spec);
+
+			Ok(runner.async_run(|mut config| {
+				let (client, backend, _, task_manager) =
+					service::new_chain_ops(&mut config, None)?;
+				Ok((
+					cmd.run(client, backend, config.chain_spec).map_err(Error::SubstrateCli),
+					task_manager,
+				))
+			})?)
+		},
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			let chain_spec = &runner.config().chain_spec;
