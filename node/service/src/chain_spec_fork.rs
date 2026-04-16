@@ -658,7 +658,7 @@ fn fix_para_session_info_session_zero(
 	validator_groups: Vec<Vec<u32>>,
 ) -> Result<(), String> {
 	use codec::{Decode, Encode};
-	use polkadot_primitives::{GroupIndex, IndexedVec, SessionInfo, ValidatorIndex};
+	use polkadot_primitives::{GroupIndex, IndexedVec, SessionInfo, ValidatorId, ValidatorIndex};
 
 	// `Sessions<T>` uses **Identity** hashing (not Twox64Concat): see
 	// `runtime/parachains/src/session_info.rs:102`. The storage key is therefore
@@ -668,18 +668,45 @@ fn fix_para_session_info_session_zero(
 		[twox_128(b"ParaSessionInfo"), twox_128(b"Sessions")].concat();
 	let full_key: Vec<u8> = [prefix, 0u32.encode()].concat();
 
-	let Some(existing_bytes) = storage.top.get(&full_key).cloned() else {
-		// No Sessions(0) entry — session cascade didn't populate it. Nothing to
-		// patch; let the runtime handle first session change later.
-		log::warn!(
-			"fix_para_session_info_session_zero: ParaSessionInfo.Sessions(0) not found; \
-			 skipping (unexpected but non-fatal)"
-		);
-		return Ok(());
+	// If cascade populated Sessions(0), decode + patch. Otherwise (thxnet:
+	// SessionHandler wiring / construct_runtime! decl order means the cascade
+	// skips writing), build a fresh SessionInfo from known-good sources so
+	// paras-backing works from block #1.
+	let mut session_info: SessionInfo = match storage.top.get(&full_key).cloned() {
+		Some(existing_bytes) => SessionInfo::decode(&mut &existing_bytes[..])
+			.map_err(|e| format!("decode ParaSessionInfo.Sessions(0): {e}"))?,
+		None => {
+			log::warn!(
+				"fix_para_session_info_session_zero: ParaSessionInfo.Sessions(0) not found; \
+				 building fresh SessionInfo from Session.Validators + dev_authority_set"
+			);
+			let sess_vals_key: Vec<u8> =
+				[twox_128(b"Session"), twox_128(b"Validators")].concat();
+			let sess_bytes = storage
+				.top
+				.get(&sess_vals_key)
+				.cloned()
+				.ok_or_else(|| "Session.Validators missing — cannot build SessionInfo(0)".to_string())?;
+			let validators: Vec<ValidatorId> = Decode::decode(&mut &sess_bytes[..])
+				.map_err(|e| format!("decode Session.Validators: {e}"))?;
+			let n = validators.len() as u32;
+			SessionInfo {
+				active_validator_indices: (0..n).map(ValidatorIndex).collect(),
+				random_seed: [0u8; 32],
+				dispute_period: 0,
+				validators: validators.into(),
+				discovery_keys: Default::default(),
+				assignment_keys: Default::default(),
+				validator_groups: Default::default(),
+				n_cores: 0,
+				zeroth_delay_tranche_width: 0,
+				relay_vrf_modulo_samples: 0,
+				n_delay_tranches: 0,
+				no_show_slots: 0,
+				needed_approvals: 0,
+			}
+		},
 	};
-
-	let mut session_info: SessionInfo = SessionInfo::decode(&mut &existing_bytes[..])
-		.map_err(|e| format!("decode ParaSessionInfo.Sessions(0): {e}"))?;
 
 	// Patch validator_groups + n_cores from our corrected scheduler state.
 	let groups_as_indexed: IndexedVec<GroupIndex, Vec<ValidatorIndex>> = validator_groups
