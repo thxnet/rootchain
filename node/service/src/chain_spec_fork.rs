@@ -766,6 +766,65 @@ fn should_drop(key: &[u8], pallet_prefixes: &[[u8; 16]], item_prefixes: &[[u8; 3
 	false
 }
 
+/// Initialise `Paras.MostRecentContext(para_id) = 0` for every registered para.
+///
+/// # Why
+///
+/// `pallet_paras::build()` writes `Parachains`, `Heads`, `CurrentCodeHash`,
+/// `CodeByHash`, `CodeByHashRefs`, and `ParaLifecycles`, but it does NOT
+/// initialise `MostRecentContext`. The pallet relies on the normal inclusion
+/// flow (`note_new_head`) to populate it on the first backed candidate.
+///
+/// On v1.12.0+ runtimes, `paras_inherent::process_candidates` reads
+/// `MostRecentContext` via `CandidateCheckContext::new(prev_context)` and
+/// calls `acquire_info(relay_parent, prev_context)`. If `prev_context` is
+/// `None`, `acquire_info` returns `None` → `DisallowedRelayParent` → the
+/// candidate is dropped and the defensive log
+/// `"Latest relay parent for paraid {:?} is None"` fires repeatedly.
+///
+/// The result: inclusion never happens → `note_new_head` never runs →
+/// `MostRecentContext` never gets populated → chicken-and-egg, para stuck
+/// at height 0 after the v1.12.0 upgrade.
+///
+/// Upstream behaviour (per `polkadot/roadmap/implementers-guide/src/runtime/paras.md`):
+/// > Apply all incoming paras by initializing the `Heads` and `CurrentCode`
+/// > using the genesis parameters as well as `MostRecentContext` to `0`.
+///
+/// `pallet_paras::build` omits the `MostRecentContext` write; this function
+/// compensates for forked genesis where no livenet state seeds the value.
+///
+/// # Safety
+///
+/// Writes a zero u32 (SCALE: `0x00000000`) to each
+/// `Paras.MostRecentContext(para_id)` storage entry. Idempotent: re-running
+/// is equivalent to a no-op. Does NOT touch any other storage.
+#[cfg(feature = "polkadot-native")]
+pub fn fix_paras_most_recent_context(
+	storage: &mut sp_core::storage::Storage,
+	para_ids: &[polkadot_primitives::Id],
+) -> Result<(), String> {
+	use codec::Encode;
+
+	let pallet_prefix = sp_core::twox_128(b"Paras");
+	let item_prefix = sp_core::twox_128(b"MostRecentContext");
+
+	for para_id in para_ids {
+		let para_id_encoded: Vec<u8> = (*para_id).encode();
+		let twox64 = sp_core::twox_64(&para_id_encoded);
+
+		let mut key = Vec::with_capacity(32 + 8 + para_id_encoded.len());
+		key.extend_from_slice(&pallet_prefix);
+		key.extend_from_slice(&item_prefix);
+		key.extend_from_slice(&twox64);
+		key.extend_from_slice(&para_id_encoded);
+
+		// BlockNumber = u32, zero = 4 zero bytes LE.
+		let _ = storage.top.insert(key, 0u32.encode());
+	}
+
+	Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Unit tests
 // ---------------------------------------------------------------------------
