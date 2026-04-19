@@ -13,6 +13,11 @@ on:
         required: false
         default: ""
         type: string
+      leafchain_image:
+        description: Optional OCI image ref used to materialize thxnet-leafchain when no local binary path exists
+        required: false
+        default: ghcr.io/thxnet/leafchain:feature-fork-genesis
+        type: string
       para_json:
         description: Optional absolute path to the parachain spec JSON used by --register-leafchain (auto-detected if empty)
         required: false
@@ -148,13 +153,36 @@ jobs:
             printf '%s\n' "$output_path"
           }
 
+          materialize_leafchain_from_image() {
+            local output_path="$1"
+            local image_ref="$2"
+            local container_name="leafchain-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "Leafchain binary missing in pre-provisioned locations; materialising $output_path from $image_ref" >&2
+            command -v docker >/dev/null
+            docker image inspect "$image_ref" >/dev/null 2>&1 || docker pull "$image_ref" >/dev/null
+            mkdir -p "$(dirname "$output_path")"
+            docker rm -f "$container_name" >/dev/null 2>&1 || true
+            docker create --name "$container_name" "$image_ref" >/dev/null
+            docker cp "$container_name:/usr/local/bin/thxnet-leafchain" "$output_path"
+            docker rm -f "$container_name" >/dev/null
+            chmod +x "$output_path"
+            [[ -x "$output_path" ]] || {
+              echo "Materialized leafchain binary is still missing: $output_path" >&2
+              return 1
+            }
+            printf '%s\n' "$output_path"
+          }
+
           RUN_ROOT="${RUNNER_TEMP}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}"
           RELAY_JSON="${RUN_ROOT}/artifacts/forked-thxnet-testnet-w8.json"
           WORKSPACE_POLKADOT="$GITHUB_WORKSPACE/target/release/polkadot"
+          WORKSPACE_LEAFCHAIN="$GITHUB_WORKSPACE/target/release/thxnet-leafchain"
+          LEAFCHAIN_IMAGE="${{ github.event.inputs.leafchain_image || 'ghcr.io/thxnet/leafchain:feature-fork-genesis' }}"
 
           {
             echo "VERIFY_CROSS_CHAIN_RUN_ROOT=$RUN_ROOT"
             echo "VERIFY_CROSS_CHAIN_RELAY_JSON=$RELAY_JSON"
+            echo "VERIFY_CROSS_CHAIN_LEAFCHAIN_IMAGE=$LEAFCHAIN_IMAGE"
           } >> "$GITHUB_ENV"
 
           if ! POLKADOT_BIN="$(pick_existing executable 'relay binary' \
@@ -163,10 +191,13 @@ jobs:
             '/root/Works/rootchain/target/release/polkadot')"; then
             POLKADOT_BIN="$(build_workspace_polkadot "$WORKSPACE_POLKADOT")"
           fi
-          LEAFCHAIN_BIN="$(pick_existing executable 'leafchain binary' \
+          if ! LEAFCHAIN_BIN="$(pick_existing executable 'leafchain binary' \
             '${{ github.event.inputs.leafchain_bin }}' \
+            "$WORKSPACE_LEAFCHAIN" \
             '/runner-assets/leafchains/thxnet-leafchain' \
-            '/root/Works/leafchains/target/release/thxnet-leafchain')"
+            '/root/Works/leafchains/target/release/thxnet-leafchain')"; then
+            LEAFCHAIN_BIN="$(materialize_leafchain_from_image "$WORKSPACE_LEAFCHAIN" "$LEAFCHAIN_IMAGE")"
+          fi
           PARA_JSON="$(pick_existing file 'parachain spec JSON' \
             '${{ github.event.inputs.para_json }}' \
             '/runner-assets/specs/w6-t3-verify.json' \
@@ -227,9 +258,10 @@ jobs:
           {
             echo "## verify-cross-chain.sh"
             echo
-            echo "- Runner labels: \`self-hosted, LKE\`"
+            echo "- Runner labels: \`hetzner-thxnet\`"
             echo "- Relay binary: \`${VERIFY_CROSS_CHAIN_POLKADOT_BIN:-unresolved}\`"
             echo "- Leafchain binary: \`${VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN:-unresolved}\`"
+            echo "- Leafchain image fallback: \`${VERIFY_CROSS_CHAIN_LEAFCHAIN_IMAGE:-unresolved}\`"
             echo "- Para spec: \`${VERIFY_CROSS_CHAIN_PARA_JSON:-unresolved}\`"
             echo "- Seed DB: \`${VERIFY_CROSS_CHAIN_SEED_DB:-unresolved}\`"
             echo "- Run root: \`${RUN_ROOT}\`"

@@ -102,6 +102,13 @@ For CI / GitHub Actions these paths are now overrideable via CLI flags or
 `VERIFY_CROSS_CHAIN_*` environment variables, so the runner does **not** need
 those exact hardcoded paths as long as equivalent inputs are provided.
 
+The workflow wrapper in `.github/workflows/fork-genesis-cross-chain.yaml`
+will also materialize `thxnet-leafchain` into the workspace automatically if no
+local runner path exists, by pulling a published OCI image
+(`ghcr.io/thxnet/leafchain:feature-fork-genesis` by default) and copying
+`/usr/local/bin/thxnet-leafchain` out of it. Operators can override that image
+per dispatch via the `leafchain_image` input.
+
 ### Run
 
 ```bash
@@ -119,7 +126,7 @@ The script is now **GitHub Actions ready**:
 - a manual workflow wrapper lives at
   `.github/workflows/fork-genesis-cross-chain.yaml`
 
-Example CI-friendly invocation:
+Example CI-friendly invocation when the runner already has the binary:
 
 ```bash
 export VERIFY_CROSS_CHAIN_POLKADOT_BIN="$GITHUB_WORKSPACE/target/release/polkadot"
@@ -130,6 +137,11 @@ export VERIFY_CROSS_CHAIN_RUN_ROOT="$RUNNER_TEMP/verify-cross-chain-$GITHUB_RUN_
 
 bash scripts/fork-genesis/verify-cross-chain.sh --burn-in-seconds=300
 ```
+
+If the runner does **not** have `thxnet-leafchain`, dispatch the workflow without
+`leafchain_bin`; it will pull the default `ghcr.io/thxnet/leafchain:feature-fork-genesis`
+image (or your overridden `leafchain_image`) and copy the binary into
+`$GITHUB_WORKSPACE/target/release/thxnet-leafchain` before running the script.
 
 This:
 
