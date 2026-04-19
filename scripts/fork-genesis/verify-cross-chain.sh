@@ -256,7 +256,70 @@ require_port_inspector() {
     command -v lsof >/dev/null 2>&1 && return 0
     command -v fuser >/dev/null 2>&1 && return 0
     command -v ss >/dev/null 2>&1 && return 0
-    die "MISSING_COMMAND" "Required command not found: one of lsof, fuser, or ss"
+    if command -v python3 >/dev/null 2>&1 && [[ -r /proc/net/tcp || -r /proc/net/tcp6 ]]; then
+        return 0
+    fi
+    warn "No port-inspection tool found; continuing without port-based stale-process cleanup"
+    return 0
+}
+
+procfs_port_pids() {
+    local port="$1"
+    command -v python3 >/dev/null 2>&1 || return 1
+    [[ -r /proc/net/tcp || -r /proc/net/tcp6 ]] || return 1
+
+    python3 - "$port" <<'PY'
+import os
+import sys
+
+port = int(sys.argv[1])
+target_inodes = set()
+for proc_net in ("/proc/net/tcp", "/proc/net/tcp6"):
+    try:
+        with open(proc_net, "r", encoding="utf-8") as handle:
+            next(handle, None)
+            for line in handle:
+                parts = line.split()
+                if len(parts) < 10:
+                    continue
+                local_address = parts[1]
+                state = parts[3]
+                inode = parts[9]
+                try:
+                    local_port = int(local_address.split(":")[1], 16)
+                except (IndexError, ValueError):
+                    continue
+                if local_port == port and state == "0A":
+                    target_inodes.add(inode)
+    except FileNotFoundError:
+        continue
+
+if not target_inodes:
+    raise SystemExit(0)
+
+pid_matches = set()
+for pid in os.listdir("/proc"):
+    if not pid.isdigit():
+        continue
+    fd_dir = f"/proc/{pid}/fd"
+    try:
+        for fd in os.listdir(fd_dir):
+            try:
+                target = os.readlink(f"{fd_dir}/{fd}")
+            except OSError:
+                continue
+            if not target.startswith("socket:["):
+                continue
+            inode = target[8:-1]
+            if inode in target_inodes:
+                pid_matches.add(pid)
+                break
+    except (FileNotFoundError, PermissionError, ProcessLookupError):
+        continue
+
+for pid in sorted(pid_matches, key=int):
+    print(pid)
+PY
 }
 
 port_pids() {
@@ -273,7 +336,11 @@ port_pids() {
         ss -ltnpH "sport = :${port}" 2>/dev/null | sed -nE 's/.*pid=([0-9]+).*/\1/p' | sort -u || true
         return 0
     fi
-    die "MISSING_COMMAND" "Required command not found: one of lsof, fuser, or ss"
+    if procfs_port_pids "$port"; then
+        return 0
+    fi
+    warn "No port-inspection tool found; skipping port-owner discovery for tcp:${port}"
+    return 0
 }
 
 mkdir -p "$STATE_ROOT" "$LOG_ROOT" "$PID_ROOT" "$(dirname "$RELAY_JSON")"

@@ -305,12 +305,16 @@ jobs:
               "$BOOTSTRAP_SEED_DB_LOG")"
           fi
 
-          command -v lsof >/dev/null 2>&1 || \
-            command -v fuser >/dev/null 2>&1 || \
-            command -v ss >/dev/null 2>&1 || {
-            echo "Missing port-inspection tool; expected one of lsof, fuser, or ss" >&2
+          if command -v lsof >/dev/null 2>&1 || \
+             command -v fuser >/dev/null 2>&1 || \
+             command -v ss >/dev/null 2>&1; then
+            :
+          elif command -v python3 >/dev/null 2>&1 && [[ -r /proc/net/tcp || -r /proc/net/tcp6 ]]; then
+            echo "No external port-inspection tool found; verify-cross-chain.sh will use python3 + /proc fallback" >&2
+          else
+            echo "Missing port-inspection capability; expected one of lsof, fuser, ss, or python3 with /proc access" >&2
             exit 1
-          }
+          fi
           mkdir -p "$RUN_ROOT/artifacts"
 
           {
