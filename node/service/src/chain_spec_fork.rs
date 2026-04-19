@@ -1708,4 +1708,109 @@ mod tests {
 			"empty Vec<Option<_>> encodes to single 0x00 byte"
 		);
 	}
+
+	// -----------------------------------------------------------------------
+	// PR #23 regression tests: fix_paras_most_recent_context
+	//
+	// Invariants under test:
+	//   (a) single para → exactly one key written, value = SCALE 0u32
+	//   (b) multiple paras → distinct keys, all with zero value
+	//   (c) idempotence → second call is a no-op
+	//   (d) empty list → no-op, no error
+	// Key schema: twox128("Paras") || twox128("MostRecentContext") ||
+	//             twox64(para_id.encode()) || para_id.encode()  (44 bytes total)
+	// -----------------------------------------------------------------------
+
+	/// Single para: the correct 44-byte key is written with SCALE 0u32 value.
+	#[cfg(feature = "polkadot-native")]
+	#[test]
+	fn fix_most_recent_context_single_para_writes_zero() {
+		use codec::Encode;
+
+		let para_id = ParaId::from(1000u32);
+		let mut storage =
+			Storage { top: Default::default(), children_default: Default::default() };
+
+		fix_paras_most_recent_context(&mut storage, &[para_id]).expect("must succeed");
+
+		let para_id_encoded = para_id.encode();
+		let twox64 = sp_core::twox_64(&para_id_encoded);
+		let mut expected_key = Vec::with_capacity(44);
+		expected_key.extend_from_slice(&twox_128(b"Paras"));
+		expected_key.extend_from_slice(&twox_128(b"MostRecentContext"));
+		expected_key.extend_from_slice(&twox64);
+		expected_key.extend_from_slice(&para_id_encoded);
+
+		assert_eq!(expected_key.len(), 44, "key must be 44 bytes");
+		let value =
+			storage.top.get(&expected_key).expect("key must be written for para 1000");
+		assert_eq!(
+			value.as_slice(),
+			&0u32.encode()[..],
+			"value must be SCALE 0u32 (4 zero bytes LE)"
+		);
+	}
+
+	/// Multiple paras: distinct para IDs produce distinct keys, all with zero value.
+	#[cfg(feature = "polkadot-native")]
+	#[test]
+	fn fix_most_recent_context_multiple_paras_distinct_keys() {
+		use codec::Encode;
+
+		let para_ids: Vec<ParaId> = vec![ParaId::from(1000u32), ParaId::from(2000u32)];
+		let mut storage =
+			Storage { top: Default::default(), children_default: Default::default() };
+
+		fix_paras_most_recent_context(&mut storage, &para_ids).expect("must succeed");
+
+		assert_eq!(storage.top.len(), 2, "exactly 2 keys must be written");
+
+		for para_id in &para_ids {
+			let para_id_encoded = para_id.encode();
+			let twox64 = sp_core::twox_64(&para_id_encoded);
+			let mut expected_key = Vec::with_capacity(44);
+			expected_key.extend_from_slice(&twox_128(b"Paras"));
+			expected_key.extend_from_slice(&twox_128(b"MostRecentContext"));
+			expected_key.extend_from_slice(&twox64);
+			expected_key.extend_from_slice(&para_id_encoded);
+
+			let value = storage
+				.top
+				.get(&expected_key)
+				.unwrap_or_else(|| panic!("key for para {:?} must be written", para_id));
+			assert_eq!(
+				value.as_slice(),
+				&0u32.encode()[..],
+				"value for para {:?} must be SCALE 0u32",
+				para_id
+			);
+		}
+	}
+
+	/// Idempotence: calling twice on the same storage leaves it unchanged.
+	#[cfg(feature = "polkadot-native")]
+	#[test]
+	fn fix_most_recent_context_is_idempotent() {
+		let para_ids: Vec<ParaId> = vec![ParaId::from(1000u32)];
+		let mut storage =
+			Storage { top: Default::default(), children_default: Default::default() };
+
+		fix_paras_most_recent_context(&mut storage, &para_ids).expect("first call must succeed");
+		let snapshot = storage.top.clone();
+
+		fix_paras_most_recent_context(&mut storage, &para_ids)
+			.expect("second call must succeed");
+
+		assert_eq!(storage.top, snapshot, "second call must not change storage (idempotent)");
+	}
+
+	/// Empty para list: no storage entries written, function returns Ok.
+	#[cfg(feature = "polkadot-native")]
+	#[test]
+	fn fix_most_recent_context_empty_list_is_noop() {
+		let mut storage =
+			Storage { top: Default::default(), children_default: Default::default() };
+		fix_paras_most_recent_context(&mut storage, &[]).expect("must succeed");
+		assert!(storage.top.is_empty(), "no keys must be written for empty para list");
+	}
 }
