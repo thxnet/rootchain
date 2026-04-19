@@ -207,27 +207,44 @@ jobs:
             local output_path="$1"
             local polkadot_bin="$2"
             local relay_chain="$3"
+            local log_path="$4"
+            local bootstrap_pid=""
+            local db_bytes=0
             echo "Seed DB missing; bootstrapping from $relay_chain genesis using $polkadot_bin" >&2
-            mkdir -p "$output_path"
-            # Run the node briefly so it writes genesis state to the DB, then kill it.
-            # --reserved-only prevents peer discovery spin-up.  60s is a safe upper
-            # bound; genesis initialisation typically completes in under 5 seconds.
-            timeout 60 "$polkadot_bin" \
+            mkdir -p "$output_path" "$(dirname "$log_path")"
+            rm -f "$log_path"
+            "$polkadot_bin" \
               --chain="$relay_chain" \
               --base-path="$output_path" \
               --no-prometheus \
               --no-telemetry \
               --no-mdns \
               --reserved-only \
-              > /dev/null 2>&1 || true
+              >"$log_path" 2>&1 &
+            bootstrap_pid=$!
+            for _ in $(seq 1 90); do
+              if [[ -d "$output_path" ]]; then
+                db_bytes=$(du -sb "$output_path" 2>/dev/null | cut -f1 || echo 0)
+                if (( db_bytes > 1024 )); then
+                  break
+                fi
+              fi
+              if ! kill -0 "$bootstrap_pid" 2>/dev/null; then
+                break
+              fi
+              sleep 2
+            done
+            kill "$bootstrap_pid" 2>/dev/null || true
+            wait "$bootstrap_pid" 2>/dev/null || true
             [[ -d "$output_path" ]] || {
               echo "Seed DB bootstrap produced no directory: $output_path" >&2
+              [[ -f "$log_path" ]] && tail -20 "$log_path" >&2
               return 1
             }
-            local db_bytes
             db_bytes=$(du -sb "$output_path" 2>/dev/null | cut -f1 || echo 0)
             (( db_bytes > 1024 )) || {
               echo "Seed DB too small after bootstrap: ${db_bytes} bytes at $output_path" >&2
+              [[ -f "$log_path" ]] && tail -20 "$log_path" >&2
               return 1
             }
             printf '%s\n' "$output_path"
@@ -239,6 +256,7 @@ jobs:
           WORKSPACE_LEAFCHAIN="$GITHUB_WORKSPACE/target/release/thxnet-leafchain"
           WORKSPACE_PARA_SPEC="$RUN_ROOT/para-specs/${{ github.event.inputs.para_chain_id || 'sand_testnet' }}.raw.json"
           BOOTSTRAP_SEED_DB="$RUN_ROOT/seed-db"
+          BOOTSTRAP_SEED_DB_LOG="$RUN_ROOT/logs/seed-db-bootstrap.log"
           LEAFCHAIN_IMAGE="${{ github.event.inputs.leafchain_image || 'ghcr.io/thxnet/leafchain:feature-fork-genesis' }}"
           GENESIS_IMAGE="${{ github.event.inputs.genesis_image || 'ghcr.io/thxnet/leafchain-genesis:feature-fork-genesis' }}"
 
@@ -276,8 +294,10 @@ jobs:
             '/runner-assets/rootchain-seed' \
             '/data/forknet-test/rootchain-seed')"; then
             SEED_DB="$(bootstrap_seed_db_from_genesis \
-              "$BOOTSTRAP_SEED_DB" "$POLKADOT_BIN" \
-              "${{ github.event.inputs.relay_chain || 'thxnet-testnet' }}")"
+              "$BOOTSTRAP_SEED_DB" \
+              "$POLKADOT_BIN" \
+              "${{ github.event.inputs.relay_chain || 'thxnet-testnet' }}" \
+              "$BOOTSTRAP_SEED_DB_LOG")"
           fi
 
           command -v lsof >/dev/null
