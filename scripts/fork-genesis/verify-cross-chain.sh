@@ -560,7 +560,10 @@ for bin in "$POLKADOT" "$LEAFCHAIN"; do
 # Para spec (input to --register-leafchain + collator --chain)
 [[ -f "$PARA_JSON" ]] || die "PARA_SPEC_MISSING" "Para spec not found: $PARA_JSON"
 PARA_SIZE=$(wc -c < "$PARA_JSON")
-(( PARA_SIZE >= 1000000 )) || die "PARA_SPEC_MISSING" "Para spec too small: ${PARA_SIZE} bytes"
+# Full W6 fork-genesis exports are large (>100 MB today). Minimal raw chain-specs
+# from build-spec / OCI image fixtures are ~1.7 MB and are known-bad for
+# cross-chain liveness because they do not carry the forked parachain state.
+(( PARA_SIZE >= 10000000 )) || die "PARA_SPEC_MISSING" "Para spec too small: ${PARA_SIZE} bytes (need a full W6 fork-genesis export)"
 info "  OK para spec: $PARA_JSON (${PARA_SIZE} bytes)"
 
 # Seed DB (read-only input to fork-genesis)

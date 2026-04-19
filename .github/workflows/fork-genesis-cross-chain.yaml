@@ -203,6 +203,30 @@ jobs:
             printf '%s\n' "$output_path"
           }
 
+          materialize_bundled_para_json() {
+            local output_path="$1"
+            local bundled_path="$GITHUB_WORKSPACE/scripts/fork-genesis/assets/w6-t3-verify.json.xz"
+            local tmp_output="${output_path}.tmp"
+            echo "Para spec missing in pre-provisioned locations; materialising $output_path from bundled repo asset $bundled_path" >&2
+            [[ -f "$bundled_path" ]] || {
+              echo "Bundled para spec asset is missing: $bundled_path" >&2
+              return 1
+            }
+            command -v python3 >/dev/null 2>&1 || {
+              echo "python3 is required to materialize bundled para spec" >&2
+              return 1
+            }
+            mkdir -p "$(dirname "$output_path")"
+            rm -f "$tmp_output"
+            python3 -c 'import lzma, shutil, sys; src, dst = sys.argv[1:3]; infile = lzma.open(src, "rb"); outfile = open(dst, "wb"); shutil.copyfileobj(infile, outfile); infile.close(); outfile.close()' "$bundled_path" "$tmp_output" || return 1
+            mv "$tmp_output" "$output_path"
+            [[ -f "$output_path" ]] || {
+              echo "Bundled para spec did not materialize: $output_path" >&2
+              return 1
+            }
+            printf '%s\n' "$output_path"
+          }
+
           bootstrap_seed_db_from_genesis() {
             local output_path="$1"
             local polkadot_bin="$2"
@@ -285,14 +309,25 @@ jobs:
             '/root/Works/leafchains/target/release/thxnet-leafchain')"; then
             LEAFCHAIN_BIN="$(materialize_leafchain_from_image "$WORKSPACE_LEAFCHAIN" "$LEAFCHAIN_IMAGE")"
           fi
-          if ! PARA_JSON="$(pick_existing file 'parachain spec JSON' \
+          PARA_JSON=""
+          if candidate_para_json="$(pick_existing file 'parachain spec JSON' \
             '${{ github.event.inputs.para_json }}' \
             '/runner-assets/specs/w6-t3-verify.json' \
             '/tmp/w6-t3-verify.json')"; then
-            PARA_JSON="$(materialize_para_json_from_image \
-              "$WORKSPACE_PARA_SPEC" \
-              "$GENESIS_IMAGE" \
-              "${{ github.event.inputs.para_chain_id || 'sand_testnet' }}")"
+            candidate_para_json_bytes=$(wc -c < "$candidate_para_json")
+            if (( candidate_para_json_bytes >= 10000000 )); then
+              PARA_JSON="$candidate_para_json"
+            else
+              echo "Ignoring undersized pre-provisioned para spec (${candidate_para_json_bytes} bytes): $candidate_para_json" >&2
+            fi
+          fi
+          if [[ -z "$PARA_JSON" ]]; then
+            if ! PARA_JSON="$(materialize_bundled_para_json "$WORKSPACE_PARA_SPEC")"; then
+              PARA_JSON="$(materialize_para_json_from_image \
+                "$WORKSPACE_PARA_SPEC" \
+                "$GENESIS_IMAGE" \
+                "${{ github.event.inputs.para_chain_id || 'sand_testnet' }}")"
+            fi
           fi
           if ! SEED_DB="$(pick_existing directory 'rootchain seed DB' \
             '${{ github.event.inputs.seed_db }}' \
@@ -303,6 +338,12 @@ jobs:
               "$POLKADOT_BIN" \
               "${{ github.event.inputs.relay_chain || 'thxnet-testnet' }}" \
               "$BOOTSTRAP_SEED_DB_LOG")"
+          fi
+
+          para_json_bytes=$(wc -c < "$PARA_JSON")
+          if (( para_json_bytes < 10000000 )); then
+            echo "Parachain spec is too small (${para_json_bytes} bytes): expected a full W6 fork-genesis export, not a minimal raw build-spec" >&2
+            exit 1
           fi
 
           if command -v lsof >/dev/null 2>&1 || \
