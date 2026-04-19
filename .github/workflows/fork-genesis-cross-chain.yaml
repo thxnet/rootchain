@@ -3,11 +3,6 @@ name: Fork Genesis Cross-Chain Verification
 on:
   workflow_dispatch:
     inputs:
-      runner:
-        description: Runner label that has access to the required seed DB and binaries
-        required: true
-        default: hetzner
-        type: string
       polkadot_bin:
         description: Absolute path to the relay binary
         required: true
@@ -59,16 +54,9 @@ concurrency:
 jobs:
   verify-cross-chain:
     name: verify-cross-chain.sh
-    runs-on: ${{ inputs.runner }}
+    runs-on: [hetzner]
     timeout-minutes: 45
     env:
-      VERIFY_CROSS_CHAIN_POLKADOT_BIN: ${{ inputs.polkadot_bin }}
-      VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN: ${{ inputs.leafchain_bin }}
-      VERIFY_CROSS_CHAIN_PARA_JSON: ${{ inputs.para_json }}
-      VERIFY_CROSS_CHAIN_SEED_DB: ${{ inputs.seed_db }}
-      VERIFY_CROSS_CHAIN_REGISTER_PARA_ID: ${{ inputs.register_para_id }}
-      VERIFY_CROSS_CHAIN_RELAY_CHAIN: ${{ inputs.relay_chain }}
-      VERIFY_CROSS_CHAIN_PARA_CHAIN_ID: ${{ inputs.para_chain_id }}
       VERIFY_CROSS_CHAIN_RUN_ROOT: ${{ runner.temp }}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}
       VERIFY_CROSS_CHAIN_RELAY_JSON: ${{ runner.temp }}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}/artifacts/forked-thxnet-testnet-w8.json
     steps:
@@ -78,19 +66,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          POLKADOT_BIN="${{ github.event.inputs.polkadot_bin || '/root/Works/rootchain/target/release/polkadot' }}"
+          LEAFCHAIN_BIN="${{ github.event.inputs.leafchain_bin || '/root/Works/leafchains/target/release/thxnet-leafchain' }}"
+          PARA_JSON="${{ github.event.inputs.para_json || '/tmp/w6-t3-verify.json' }}"
+          SEED_DB="${{ github.event.inputs.seed_db || '/data/forknet-test/rootchain-seed' }}"
           command -v lsof >/dev/null
-          [[ -x "$VERIFY_CROSS_CHAIN_POLKADOT_BIN" ]]
-          [[ -x "$VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN" ]]
-          [[ -f "$VERIFY_CROSS_CHAIN_PARA_JSON" ]]
-          [[ -d "$VERIFY_CROSS_CHAIN_SEED_DB" ]]
+          [[ -x "$POLKADOT_BIN" ]]
+          [[ -x "$LEAFCHAIN_BIN" ]]
+          [[ -f "$PARA_JSON" ]]
+          [[ -d "$SEED_DB" ]]
           mkdir -p "$VERIFY_CROSS_CHAIN_RUN_ROOT/artifacts"
 
       - name: Run verify-cross-chain.sh
         shell: bash
         run: |
           set -euo pipefail
+          export VERIFY_CROSS_CHAIN_POLKADOT_BIN="${{ github.event.inputs.polkadot_bin || '/root/Works/rootchain/target/release/polkadot' }}"
+          export VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN="${{ github.event.inputs.leafchain_bin || '/root/Works/leafchains/target/release/thxnet-leafchain' }}"
+          export VERIFY_CROSS_CHAIN_PARA_JSON="${{ github.event.inputs.para_json || '/tmp/w6-t3-verify.json' }}"
+          export VERIFY_CROSS_CHAIN_SEED_DB="${{ github.event.inputs.seed_db || '/data/forknet-test/rootchain-seed' }}"
+          export VERIFY_CROSS_CHAIN_REGISTER_PARA_ID="${{ github.event.inputs.register_para_id || '1003' }}"
+          export VERIFY_CROSS_CHAIN_RELAY_CHAIN="${{ github.event.inputs.relay_chain || 'thxnet-testnet' }}"
+          export VERIFY_CROSS_CHAIN_PARA_CHAIN_ID="${{ github.event.inputs.para_chain_id || 'sand_testnet' }}"
           bash scripts/fork-genesis/verify-cross-chain.sh \
-            --burn-in-seconds="${{ inputs.burn_in_seconds }}" \
+            --burn-in-seconds="${{ github.event.inputs.burn_in_seconds || '300' }}" \
             --run-root="$VERIFY_CROSS_CHAIN_RUN_ROOT"
 
       - name: Upload cross-chain verification artifacts
@@ -113,11 +112,11 @@ jobs:
           {
             echo "## verify-cross-chain.sh"
             echo
-            echo "- Runner: ${{ inputs.runner }}"
-            echo "- Relay binary: \`${VERIFY_CROSS_CHAIN_POLKADOT_BIN}\`"
-            echo "- Leafchain binary: \`${VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN}\`"
-            echo "- Para spec: \`${VERIFY_CROSS_CHAIN_PARA_JSON}\`"
-            echo "- Seed DB: \`${VERIFY_CROSS_CHAIN_SEED_DB}\`"
+            echo "- Runner: `hetzner`"
+            echo "- Relay binary: \`${{ github.event.inputs.polkadot_bin || '/root/Works/rootchain/target/release/polkadot' }}\`"
+            echo "- Leafchain binary: \`${{ github.event.inputs.leafchain_bin || '/root/Works/leafchains/target/release/thxnet-leafchain' }}\`"
+            echo "- Para spec: \`${{ github.event.inputs.para_json || '/tmp/w6-t3-verify.json' }}\`"
+            echo "- Seed DB: \`${{ github.event.inputs.seed_db || '/data/forknet-test/rootchain-seed' }}\`"
             echo "- Run root: \`${VERIFY_CROSS_CHAIN_RUN_ROOT}\`"
             echo
             if [[ -d "$LOG_DIR" ]]; then
