@@ -203,11 +203,42 @@ jobs:
             printf '%s\n' "$output_path"
           }
 
+          bootstrap_seed_db_from_genesis() {
+            local output_path="$1"
+            local polkadot_bin="$2"
+            local relay_chain="$3"
+            echo "Seed DB missing; bootstrapping from $relay_chain genesis using $polkadot_bin" >&2
+            mkdir -p "$output_path"
+            # Run the node briefly so it writes genesis state to the DB, then kill it.
+            # --reserved-only prevents peer discovery spin-up.  60s is a safe upper
+            # bound; genesis initialisation typically completes in under 5 seconds.
+            timeout 60 "$polkadot_bin" \
+              --chain="$relay_chain" \
+              --base-path="$output_path" \
+              --no-prometheus \
+              --no-telemetry \
+              --no-mdns \
+              --reserved-only \
+              > /dev/null 2>&1 || true
+            [[ -d "$output_path" ]] || {
+              echo "Seed DB bootstrap produced no directory: $output_path" >&2
+              return 1
+            }
+            local db_bytes
+            db_bytes=$(du -sb "$output_path" 2>/dev/null | cut -f1 || echo 0)
+            (( db_bytes > 1024 )) || {
+              echo "Seed DB too small after bootstrap: ${db_bytes} bytes at $output_path" >&2
+              return 1
+            }
+            printf '%s\n' "$output_path"
+          }
+
           RUN_ROOT="${RUNNER_TEMP}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}"
           RELAY_JSON="${RUN_ROOT}/artifacts/forked-thxnet-testnet-w8.json"
           WORKSPACE_POLKADOT="$GITHUB_WORKSPACE/target/release/polkadot"
           WORKSPACE_LEAFCHAIN="$GITHUB_WORKSPACE/target/release/thxnet-leafchain"
           WORKSPACE_PARA_SPEC="$RUN_ROOT/para-specs/${{ github.event.inputs.para_chain_id || 'sand_testnet' }}.raw.json"
+          BOOTSTRAP_SEED_DB="$RUN_ROOT/seed-db"
           LEAFCHAIN_IMAGE="${{ github.event.inputs.leafchain_image || 'ghcr.io/thxnet/leafchain:feature-fork-genesis' }}"
           GENESIS_IMAGE="${{ github.event.inputs.genesis_image || 'ghcr.io/thxnet/leafchain-genesis:feature-fork-genesis' }}"
 
@@ -240,10 +271,14 @@ jobs:
               "$GENESIS_IMAGE" \
               "${{ github.event.inputs.para_chain_id || 'sand_testnet' }}")"
           fi
-          SEED_DB="$(pick_existing directory 'rootchain seed DB' \
+          if ! SEED_DB="$(pick_existing directory 'rootchain seed DB' \
             '${{ github.event.inputs.seed_db }}' \
             '/runner-assets/rootchain-seed' \
-            '/data/forknet-test/rootchain-seed')"
+            '/data/forknet-test/rootchain-seed')"; then
+            SEED_DB="$(bootstrap_seed_db_from_genesis \
+              "$BOOTSTRAP_SEED_DB" "$POLKADOT_BIN" \
+              "${{ github.event.inputs.relay_chain || 'thxnet-testnet' }}")"
+          fi
 
           command -v lsof >/dev/null
           mkdir -p "$RUN_ROOT/artifacts"
