@@ -222,10 +222,15 @@ jobs:
               --reserved-only \
               >"$log_path" 2>&1 &
             bootstrap_pid=$!
+            # Wait until polkadot writes at least 1 MB to the DB (genesis WASM +
+            # initial state are always several MB) or until the process exits.
+            # 1024-byte threshold is insufficient because mkdir-p pre-creates the
+            # directory which already has 4096 bytes of metadata.
+            local min_bytes=1048576
             for _ in $(seq 1 90); do
               if [[ -d "$output_path" ]]; then
                 db_bytes=$(du -sb "$output_path" 2>/dev/null | cut -f1 || echo 0)
-                if (( db_bytes > 1024 )); then
+                if (( db_bytes > min_bytes )); then
                   break
                 fi
               fi
@@ -242,8 +247,8 @@ jobs:
               return 1
             }
             db_bytes=$(du -sb "$output_path" 2>/dev/null | cut -f1 || echo 0)
-            (( db_bytes > 1024 )) || {
-              echo "Seed DB too small after bootstrap: ${db_bytes} bytes at $output_path" >&2
+            (( db_bytes > min_bytes )) || {
+              echo "Seed DB too small after bootstrap: ${db_bytes} bytes (need >${min_bytes}) at $output_path" >&2
               [[ -f "$log_path" ]] && tail -20 "$log_path" >&2
               return 1
             }
