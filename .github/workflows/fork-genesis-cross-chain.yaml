@@ -105,18 +105,39 @@ jobs:
             return 1
           }
 
+          build_workspace_polkadot() {
+            local output_path="$1"
+            echo "Relay binary missing in pre-provisioned locations; building $output_path" >&2
+            command -v cargo >/dev/null
+            command -v clang-14 >/dev/null
+            command -v clang++-14 >/dev/null
+            export CC="${CC:-clang-14}"
+            export CXX="${CXX:-clang++-14}"
+            export LIBCLANG_PATH="${LIBCLANG_PATH:-/usr/lib/llvm-14/lib}"
+            export CXXFLAGS="${CXXFLAGS:--include cstdint}"
+            cargo build --release -p polkadot
+            [[ -x "$output_path" ]] || {
+              echo "Built relay binary is still missing: $output_path" >&2
+              return 1
+            }
+            printf '%s\n' "$output_path"
+          }
+
           RUN_ROOT="${RUNNER_TEMP}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}"
           RELAY_JSON="${RUN_ROOT}/artifacts/forked-thxnet-testnet-w8.json"
+          WORKSPACE_POLKADOT="$GITHUB_WORKSPACE/target/release/polkadot"
 
           {
             echo "VERIFY_CROSS_CHAIN_RUN_ROOT=$RUN_ROOT"
             echo "VERIFY_CROSS_CHAIN_RELAY_JSON=$RELAY_JSON"
           } >> "$GITHUB_ENV"
 
-          POLKADOT_BIN="$(pick_existing executable 'relay binary' \
+          if ! POLKADOT_BIN="$(pick_existing executable 'relay binary' \
             '${{ github.event.inputs.polkadot_bin }}' \
-            "$GITHUB_WORKSPACE/target/release/polkadot" \
-            '/root/Works/rootchain/target/release/polkadot')"
+            "$WORKSPACE_POLKADOT" \
+            '/root/Works/rootchain/target/release/polkadot')"; then
+            POLKADOT_BIN="$(build_workspace_polkadot "$WORKSPACE_POLKADOT")"
+          fi
           LEAFCHAIN_BIN="$(pick_existing executable 'leafchain binary' \
             '${{ github.event.inputs.leafchain_bin }}' \
             '/runner-assets/leafchains/thxnet-leafchain' \
