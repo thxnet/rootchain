@@ -18,6 +18,11 @@ on:
         required: false
         default: ghcr.io/thxnet/leafchain:feature-fork-genesis
         type: string
+      genesis_image:
+        description: Optional OCI image ref used to materialize the parachain spec JSON when no local path exists
+        required: false
+        default: ghcr.io/thxnet/leafchain-genesis:feature-fork-genesis
+        type: string
       para_json:
         description: Optional absolute path to the parachain spec JSON used by --register-leafchain (auto-detected if empty)
         required: false
@@ -173,16 +178,44 @@ jobs:
             printf '%s\n' "$output_path"
           }
 
+          materialize_para_json_from_image() {
+            local output_path="$1"
+            local image_ref="$2"
+            local para_chain_id="$3"
+            local container_name="leafchain-genesis-${{ github.run_id }}-${{ github.run_attempt }}"
+            # Derive spec filename: sand_testnet → testnet.leafchain.sand.raw.json
+            # Pattern: {last_segment}.leafchain.{prefix}.raw.json
+            local last_segment="${para_chain_id##*_}"
+            local net_prefix="${para_chain_id%_*}"
+            local spec_filename="${last_segment}.leafchain.${net_prefix}.raw.json"
+            echo "Para spec missing in pre-provisioned locations; materialising $output_path from $image_ref (spec: $spec_filename)" >&2
+            command -v docker >/dev/null
+            docker image inspect "$image_ref" >/dev/null 2>&1 || docker pull "$image_ref" >/dev/null
+            mkdir -p "$(dirname "$output_path")"
+            docker rm -f "$container_name" >/dev/null 2>&1 || true
+            docker create --name "$container_name" "$image_ref" >/dev/null
+            docker cp "$container_name:/chain-specs/$spec_filename" "$output_path"
+            docker rm -f "$container_name" >/dev/null
+            [[ -f "$output_path" ]] || {
+              echo "Materialized para spec is still missing: $output_path" >&2
+              return 1
+            }
+            printf '%s\n' "$output_path"
+          }
+
           RUN_ROOT="${RUNNER_TEMP}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}"
           RELAY_JSON="${RUN_ROOT}/artifacts/forked-thxnet-testnet-w8.json"
           WORKSPACE_POLKADOT="$GITHUB_WORKSPACE/target/release/polkadot"
           WORKSPACE_LEAFCHAIN="$GITHUB_WORKSPACE/target/release/thxnet-leafchain"
+          WORKSPACE_PARA_SPEC="$RUN_ROOT/para-specs/${{ github.event.inputs.para_chain_id || 'sand_testnet' }}.raw.json"
           LEAFCHAIN_IMAGE="${{ github.event.inputs.leafchain_image || 'ghcr.io/thxnet/leafchain:feature-fork-genesis' }}"
+          GENESIS_IMAGE="${{ github.event.inputs.genesis_image || 'ghcr.io/thxnet/leafchain-genesis:feature-fork-genesis' }}"
 
           {
             echo "VERIFY_CROSS_CHAIN_RUN_ROOT=$RUN_ROOT"
             echo "VERIFY_CROSS_CHAIN_RELAY_JSON=$RELAY_JSON"
             echo "VERIFY_CROSS_CHAIN_LEAFCHAIN_IMAGE=$LEAFCHAIN_IMAGE"
+            echo "VERIFY_CROSS_CHAIN_GENESIS_IMAGE=$GENESIS_IMAGE"
           } >> "$GITHUB_ENV"
 
           if ! POLKADOT_BIN="$(pick_existing executable 'relay binary' \
@@ -198,10 +231,15 @@ jobs:
             '/root/Works/leafchains/target/release/thxnet-leafchain')"; then
             LEAFCHAIN_BIN="$(materialize_leafchain_from_image "$WORKSPACE_LEAFCHAIN" "$LEAFCHAIN_IMAGE")"
           fi
-          PARA_JSON="$(pick_existing file 'parachain spec JSON' \
+          if ! PARA_JSON="$(pick_existing file 'parachain spec JSON' \
             '${{ github.event.inputs.para_json }}' \
             '/runner-assets/specs/w6-t3-verify.json' \
-            '/tmp/w6-t3-verify.json')"
+            '/tmp/w6-t3-verify.json')"; then
+            PARA_JSON="$(materialize_para_json_from_image \
+              "$WORKSPACE_PARA_SPEC" \
+              "$GENESIS_IMAGE" \
+              "${{ github.event.inputs.para_chain_id || 'sand_testnet' }}")"
+          fi
           SEED_DB="$(pick_existing directory 'rootchain seed DB' \
             '${{ github.event.inputs.seed_db }}' \
             '/runner-assets/rootchain-seed' \
@@ -262,6 +300,7 @@ jobs:
             echo "- Relay binary: \`${VERIFY_CROSS_CHAIN_POLKADOT_BIN:-unresolved}\`"
             echo "- Leafchain binary: \`${VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN:-unresolved}\`"
             echo "- Leafchain image fallback: \`${VERIFY_CROSS_CHAIN_LEAFCHAIN_IMAGE:-unresolved}\`"
+            echo "- Genesis image fallback: \`${VERIFY_CROSS_CHAIN_GENESIS_IMAGE:-unresolved}\`"
             echo "- Para spec: \`${VERIFY_CROSS_CHAIN_PARA_JSON:-unresolved}\`"
             echo "- Seed DB: \`${VERIFY_CROSS_CHAIN_SEED_DB:-unresolved}\`"
             echo "- Run root: \`${RUN_ROOT}\`"
