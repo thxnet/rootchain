@@ -55,7 +55,7 @@ concurrency:
 jobs:
   verify-cross-chain:
     name: verify-cross-chain.sh
-    runs-on: [self-hosted, LKE]
+    runs-on: hetzner-thxnet
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4

@@ -35,7 +35,7 @@ concurrency:
 jobs:
   image:
     name: Build and publish images
-    runs-on: [self-hosted, LKE]
+    runs-on: hetzner-thxnet
     strategy:
       fail-fast: false
       matrix:
