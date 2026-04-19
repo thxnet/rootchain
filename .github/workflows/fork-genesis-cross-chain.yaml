@@ -54,7 +54,7 @@ concurrency:
 jobs:
   verify-cross-chain:
     name: verify-cross-chain.sh
-    runs-on: [hetzner]
+    runs-on: [self-hosted, hetzner-thxnet]
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -115,7 +115,7 @@ jobs:
           {
             echo "## verify-cross-chain.sh"
             echo
-            echo "- Runner: `hetzner`"
+            echo "- Runner labels: `self-hosted, hetzner-thxnet`"
             echo "- Relay binary: \`${{ github.event.inputs.polkadot_bin || '/root/Works/rootchain/target/release/polkadot' }}\`"
             echo "- Leafchain binary: \`${{ github.event.inputs.leafchain_bin || '/root/Works/leafchains/target/release/thxnet-leafchain' }}\`"
             echo "- Para spec: \`${{ github.event.inputs.para_json || '/tmp/w6-t3-verify.json' }}\`"

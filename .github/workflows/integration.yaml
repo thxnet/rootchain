@@ -14,6 +14,10 @@ on:
       - v*
   pull_request:
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   CI: 1
   REGISTRY: ghcr.io
@@ -31,7 +35,7 @@ concurrency:
 jobs:
   image:
     name: Build and publish images
-    runs-on: [hetzner]
+    runs-on: [self-hosted, hetzner-thxnet]
     strategy:
       fail-fast: false
       matrix:
