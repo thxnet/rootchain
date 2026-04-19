@@ -300,6 +300,10 @@ jobs:
               "$BOOTSTRAP_SEED_DB_LOG")"
           fi
 
+          command -v lsof >/dev/null 2>&1 || {
+            echo "lsof not found; installing via apt-get" >&2
+            sudo apt-get install -y --no-install-recommends lsof >/dev/null 2>&1
+          }
           command -v lsof >/dev/null
           mkdir -p "$RUN_ROOT/artifacts"
 
