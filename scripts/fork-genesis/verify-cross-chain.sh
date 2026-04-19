@@ -252,8 +252,32 @@ require_cmd() {
     command -v "$cmd" >/dev/null 2>&1 || die "MISSING_COMMAND" "Required command not found: $cmd"
 }
 
+require_port_inspector() {
+    command -v lsof >/dev/null 2>&1 && return 0
+    command -v fuser >/dev/null 2>&1 && return 0
+    command -v ss >/dev/null 2>&1 && return 0
+    die "MISSING_COMMAND" "Required command not found: one of lsof, fuser, or ss"
+}
+
+port_pids() {
+    local port="$1"
+    if command -v lsof >/dev/null 2>&1; then
+        lsof -ti "tcp:${port}" 2>/dev/null || true
+        return 0
+    fi
+    if command -v fuser >/dev/null 2>&1; then
+        fuser -n tcp "$port" 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+$' || true
+        return 0
+    fi
+    if command -v ss >/dev/null 2>&1; then
+        ss -ltnpH "sport = :${port}" 2>/dev/null | sed -nE 's/.*pid=([0-9]+).*/\1/p' | sort -u || true
+        return 0
+    fi
+    die "MISSING_COMMAND" "Required command not found: one of lsof, fuser, or ss"
+}
+
 mkdir -p "$STATE_ROOT" "$LOG_ROOT" "$PID_ROOT" "$(dirname "$RELAY_JSON")"
-require_cmd lsof
+require_port_inspector
 require_cmd grep
 require_cmd wc
 
@@ -263,12 +287,13 @@ cleanup_prior_runs() {
     # Kill by port
     for port in 40331 40332 40333 40334 40335 40336 40337 40338 40339 \
                 9931  9932  9933  9934  9935  9936  9937  9938  9939; do
-        local pid
-        pid=$(lsof -ti "tcp:${port}" 2>/dev/null || true)
-        if [[ -n "$pid" ]]; then
+        local pids pid
+        pids=$(port_pids "$port")
+        for pid in $pids; do
+            [[ -n "$pid" ]] || continue
             info "  Port $port occupied by PID $pid — killing"
             kill "$pid" 2>/dev/null || true
-        fi
+        done
     done
     # Kill by PID files (only the known node PID files, not the script's own PID file)
     for pidf in "${ALL_PID_FILES[@]}"; do
