@@ -28,16 +28,68 @@
 #   CRITICAL_LOG_HIT        — panic/stall/fatal keyword found during burn-in
 #
 # Usage:
-#   ./verify-cross-chain.sh [--keep-running] [--burn-in-seconds=N]
+#   ./verify-cross-chain.sh [--keep-running] [--burn-in-seconds=N] [--run-root=PATH]
+#                           [--polkadot-bin=PATH] [--leafchain-bin=PATH]
+#                           [--para-json=PATH] [--relay-json=PATH]
+#                           [--seed-db=PATH] [--register-para-id=N]
+#                           [--relay-chain=CHAIN] [--para-chain-id=CHAIN]
 #
 #   --keep-running          Do NOT kill nodes on exit (default: OFF; use for debugging).
 #   --burn-in-seconds=N     Override 5-min (300s) burn-in duration.
+#   --run-root=PATH         Working directory root for node state/logs/pid files.
+#   --polkadot-bin=PATH     Override the relay binary path.
+#   --leafchain-bin=PATH    Override the leafchain binary path.
+#   --para-json=PATH        Override the para spec path.
+#   --relay-json=PATH       Override the regenerated relay spec output path.
+#   --seed-db=PATH          Override the read-only fork seed DB path.
+#   --register-para-id=N    Override the para id passed to --register-leafchain.
+#   --relay-chain=CHAIN     Override the relay chain name passed to fork-genesis.
+#   --para-chain-id=CHAIN   Override the parachain chain id used for keystore layout.
+#
+# Environment variables (CI/CD friendly):
+#   VERIFY_CROSS_CHAIN_POLKADOT_BIN
+#   VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN
+#   VERIFY_CROSS_CHAIN_PARA_JSON
+#   VERIFY_CROSS_CHAIN_RELAY_JSON
+#   VERIFY_CROSS_CHAIN_SEED_DB
+#   VERIFY_CROSS_CHAIN_REGISTER_PARA_ID
+#   VERIFY_CROSS_CHAIN_RELAY_CHAIN
+#   VERIFY_CROSS_CHAIN_PARA_CHAIN_ID
+#   VERIFY_CROSS_CHAIN_RUN_ROOT
 
 set -euo pipefail
 
+usage() {
+    cat <<'EOF'
+verify-cross-chain.sh — Cross-chain fork-genesis rehearsal
+
+Options:
+  --keep-running
+  --burn-in-seconds=N
+  --run-root=PATH
+  --polkadot-bin=PATH
+  --leafchain-bin=PATH
+  --para-json=PATH
+  --relay-json=PATH
+  --seed-db=PATH
+  --register-para-id=N
+  --relay-chain=CHAIN
+  --para-chain-id=CHAIN
+  -h, --help
+
+Environment-variable equivalents are documented in the file header.
+EOF
+}
+
+TMP_ROOT="${TMPDIR:-${RUNNER_TEMP:-/tmp}}"
+DEFAULT_RUN_ROOT="${TMP_ROOT}/verify-cross-chain"
+if [[ -n "${GITHUB_RUN_ID:-}" ]]; then
+    DEFAULT_RUN_ROOT+="-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT:-1}"
+fi
+
 # ─── Binaries ────────────────────────────────────────────────────────────────
-POLKADOT="/root/Works/rootchain/target/release/polkadot"
-LEAFCHAIN="/root/Works/leafchains/target/release/thxnet-leafchain"
+POLKADOT="${VERIFY_CROSS_CHAIN_POLKADOT_BIN:-${POLKADOT:-/root/Works/rootchain/target/release/polkadot}}"
+LEAFCHAIN="${VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN:-${LEAFCHAIN:-/root/Works/leafchains/target/release/thxnet-leafchain}}"
 
 # ─── Chain specs ─────────────────────────────────────────────────────────────
 # W8: Forked relay spec is regenerated from the seed DB at script start using
@@ -48,11 +100,12 @@ LEAFCHAIN="/root/Works/leafchains/target/release/thxnet-leafchain"
 # overwrites ParaScheduler.{ValidatorGroups, AvailabilityCores,
 # SessionStartBlock} so backing works from block #1 without waiting for a BABE
 # epoch.
-RELAY_JSON="/tmp/forked-thxnet-testnet-w8.json"
-PARA_JSON="/tmp/w6-t3-verify.json"
+RELAY_JSON="${VERIFY_CROSS_CHAIN_RELAY_JSON:-${RELAY_JSON:-${TMP_ROOT}/forked-thxnet-testnet-w8.json}}"
+PARA_JSON="${VERIFY_CROSS_CHAIN_PARA_JSON:-${PARA_JSON:-${TMP_ROOT}/w6-t3-verify.json}}"
 # Seed DB used by fork-genesis (read-only).
-ROOTCHAIN_SEED_DB="/data/forknet-test/rootchain-seed"
-REGISTER_PARA_ID="1003"
+ROOTCHAIN_SEED_DB="${VERIFY_CROSS_CHAIN_SEED_DB:-${ROOTCHAIN_SEED_DB:-/data/forknet-test/rootchain-seed}}"
+REGISTER_PARA_ID="${VERIFY_CROSS_CHAIN_REGISTER_PARA_ID:-${REGISTER_PARA_ID:-1003}}"
+RELAY_CHAIN="${VERIFY_CROSS_CHAIN_RELAY_CHAIN:-${RELAY_CHAIN:-thxnet-testnet}}"
 
 # ─── Relay node keys & peer IDs ──────────────────────────────────────────────
 RELAY_ALICE_NODE_KEY="0000000000000000000000000000000000000000000000000000000000000001"
@@ -76,23 +129,29 @@ BOB_SR25519_PUB="8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a4
 CHARLIE_SR25519_PUB="90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22"
 
 # ─── Para chain ID (matches spec's "id" field) ───────────────────────────────
-PARA_CHAIN_ID="sand_testnet"
+PARA_CHAIN_ID="${VERIFY_CROSS_CHAIN_PARA_CHAIN_ID:-${PARA_CHAIN_ID:-sand_testnet}}"
+
+# ─── Working directories / artifacts roots ────────────────────────────────────
+RUN_ROOT="${VERIFY_CROSS_CHAIN_RUN_ROOT:-${XCV_RUN_ROOT:-$DEFAULT_RUN_ROOT}}"
+STATE_ROOT="${RUN_ROOT}/state"
+LOG_ROOT="${RUN_ROOT}/logs"
+PID_ROOT="${RUN_ROOT}/pids"
 
 # ─── Base paths ──────────────────────────────────────────────────────────────
-BASE_RELAY_ALICE="/tmp/xcv-relay-alice"
-BASE_RELAY_BOB="/tmp/xcv-relay-bob"
-BASE_RELAY_CHARLIE="/tmp/xcv-relay-charlie"
-BASE_SAND_ALICE="/tmp/xcv-sand-alice"
-BASE_SAND_BOB="/tmp/xcv-sand-bob"
-BASE_SAND_CHARLIE="/tmp/xcv-sand-charlie"
+BASE_RELAY_ALICE="${STATE_ROOT}/relay-alice"
+BASE_RELAY_BOB="${STATE_ROOT}/relay-bob"
+BASE_RELAY_CHARLIE="${STATE_ROOT}/relay-charlie"
+BASE_SAND_ALICE="${STATE_ROOT}/sand-alice"
+BASE_SAND_BOB="${STATE_ROOT}/sand-bob"
+BASE_SAND_CHARLIE="${STATE_ROOT}/sand-charlie"
 
 # ─── Logs ────────────────────────────────────────────────────────────────────
-LOG_RELAY_ALICE="/tmp/xcv-relay-alice.log"
-LOG_RELAY_BOB="/tmp/xcv-relay-bob.log"
-LOG_RELAY_CHARLIE="/tmp/xcv-relay-charlie.log"
-LOG_SAND_ALICE="/tmp/xcv-sand-alice.log"
-LOG_SAND_BOB="/tmp/xcv-sand-bob.log"
-LOG_SAND_CHARLIE="/tmp/xcv-sand-charlie.log"
+LOG_RELAY_ALICE="${LOG_ROOT}/relay-alice.log"
+LOG_RELAY_BOB="${LOG_ROOT}/relay-bob.log"
+LOG_RELAY_CHARLIE="${LOG_ROOT}/relay-charlie.log"
+LOG_SAND_ALICE="${LOG_ROOT}/sand-alice.log"
+LOG_SAND_BOB="${LOG_ROOT}/sand-bob.log"
+LOG_SAND_CHARLIE="${LOG_ROOT}/sand-charlie.log"
 
 ALL_RELAY_LOGS=("$LOG_RELAY_ALICE" "$LOG_RELAY_BOB" "$LOG_RELAY_CHARLIE")
 ALL_PARA_LOGS=("$LOG_SAND_ALICE" "$LOG_SAND_BOB" "$LOG_SAND_CHARLIE")
@@ -106,12 +165,12 @@ PID_SAND_ALICE=""
 PID_SAND_BOB=""
 PID_SAND_CHARLIE=""
 
-PID_FILE_RELAY_ALICE="/tmp/xcv-relay-alice.pid"
-PID_FILE_RELAY_BOB="/tmp/xcv-relay-bob.pid"
-PID_FILE_RELAY_CHARLIE="/tmp/xcv-relay-charlie.pid"
-PID_FILE_SAND_ALICE="/tmp/xcv-sand-alice.pid"
-PID_FILE_SAND_BOB="/tmp/xcv-sand-bob.pid"
-PID_FILE_SAND_CHARLIE="/tmp/xcv-sand-charlie.pid"
+PID_FILE_RELAY_ALICE="${PID_ROOT}/relay-alice.pid"
+PID_FILE_RELAY_BOB="${PID_ROOT}/relay-bob.pid"
+PID_FILE_RELAY_CHARLIE="${PID_ROOT}/relay-charlie.pid"
+PID_FILE_SAND_ALICE="${PID_ROOT}/sand-alice.pid"
+PID_FILE_SAND_BOB="${PID_ROOT}/sand-bob.pid"
+PID_FILE_SAND_CHARLIE="${PID_ROOT}/sand-charlie.pid"
 
 ALL_PID_FILES=(
     "$PID_FILE_RELAY_ALICE" "$PID_FILE_RELAY_BOB" "$PID_FILE_RELAY_CHARLIE"
@@ -134,9 +193,45 @@ for arg in "$@"; do
     case "$arg" in
         --keep-running)         KEEP_RUNNING=true ;;
         --burn-in-seconds=*)    BURN_IN_SECONDS="${arg#*=}" ;;
+        --run-root=*)           RUN_ROOT="${arg#*=}" ; STATE_ROOT="${RUN_ROOT}/state" ; LOG_ROOT="${RUN_ROOT}/logs" ; PID_ROOT="${RUN_ROOT}/pids" ;;
+        --polkadot-bin=*)       POLKADOT="${arg#*=}" ;;
+        --leafchain-bin=*)      LEAFCHAIN="${arg#*=}" ;;
+        --para-json=*)          PARA_JSON="${arg#*=}" ;;
+        --relay-json=*)         RELAY_JSON="${arg#*=}" ;;
+        --seed-db=*)            ROOTCHAIN_SEED_DB="${arg#*=}" ;;
+        --register-para-id=*)   REGISTER_PARA_ID="${arg#*=}" ;;
+        --relay-chain=*)        RELAY_CHAIN="${arg#*=}" ;;
+        --para-chain-id=*)      PARA_CHAIN_ID="${arg#*=}" ;;
+        -h|--help)              usage; exit 0 ;;
         *) echo "Unknown arg: $arg" >&2; exit 1 ;;
     esac
 done
+
+BASE_RELAY_ALICE="${STATE_ROOT}/relay-alice"
+BASE_RELAY_BOB="${STATE_ROOT}/relay-bob"
+BASE_RELAY_CHARLIE="${STATE_ROOT}/relay-charlie"
+BASE_SAND_ALICE="${STATE_ROOT}/sand-alice"
+BASE_SAND_BOB="${STATE_ROOT}/sand-bob"
+BASE_SAND_CHARLIE="${STATE_ROOT}/sand-charlie"
+LOG_RELAY_ALICE="${LOG_ROOT}/relay-alice.log"
+LOG_RELAY_BOB="${LOG_ROOT}/relay-bob.log"
+LOG_RELAY_CHARLIE="${LOG_ROOT}/relay-charlie.log"
+LOG_SAND_ALICE="${LOG_ROOT}/sand-alice.log"
+LOG_SAND_BOB="${LOG_ROOT}/sand-bob.log"
+LOG_SAND_CHARLIE="${LOG_ROOT}/sand-charlie.log"
+ALL_RELAY_LOGS=("$LOG_RELAY_ALICE" "$LOG_RELAY_BOB" "$LOG_RELAY_CHARLIE")
+ALL_PARA_LOGS=("$LOG_SAND_ALICE" "$LOG_SAND_BOB" "$LOG_SAND_CHARLIE")
+ALL_LOGS=("${ALL_RELAY_LOGS[@]}" "${ALL_PARA_LOGS[@]}")
+PID_FILE_RELAY_ALICE="${PID_ROOT}/relay-alice.pid"
+PID_FILE_RELAY_BOB="${PID_ROOT}/relay-bob.pid"
+PID_FILE_RELAY_CHARLIE="${PID_ROOT}/relay-charlie.pid"
+PID_FILE_SAND_ALICE="${PID_ROOT}/sand-alice.pid"
+PID_FILE_SAND_BOB="${PID_ROOT}/sand-bob.pid"
+PID_FILE_SAND_CHARLIE="${PID_ROOT}/sand-charlie.pid"
+ALL_PID_FILES=(
+    "$PID_FILE_RELAY_ALICE" "$PID_FILE_RELAY_BOB" "$PID_FILE_RELAY_CHARLIE"
+    "$PID_FILE_SAND_ALICE"  "$PID_FILE_SAND_BOB"  "$PID_FILE_SAND_CHARLIE"
+)
 
 # ─── Logging helpers ─────────────────────────────────────────────────────────
 ts()    { date '+%H:%M:%S'; }
@@ -151,6 +246,16 @@ die() {
     error "FATAL[$code]: $*"
     exit 1
 }
+
+require_cmd() {
+    local cmd="$1"
+    command -v "$cmd" >/dev/null 2>&1 || die "MISSING_COMMAND" "Required command not found: $cmd"
+}
+
+mkdir -p "$STATE_ROOT" "$LOG_ROOT" "$PID_ROOT" "$(dirname "$RELAY_JSON")"
+require_cmd lsof
+require_cmd grep
+require_cmd wc
 
 # ─── Cleanup: prior runs ─────────────────────────────────────────────────────
 cleanup_prior_runs() {
@@ -178,7 +283,7 @@ cleanup_prior_runs() {
     done
     sleep 2  # let ports drain
     # Clear old node logs (not the script's own run log which uses a different prefix)
-    rm -f /tmp/xcv-relay-*.log /tmp/xcv-sand-*.log
+    rm -f "${ALL_LOGS[@]}"
     # Clear base paths for fresh start (avoids keystore/DB conflicts)
     rm -rf "$BASE_RELAY_ALICE" "$BASE_RELAY_BOB" "$BASE_RELAY_CHARLIE" \
            "$BASE_SAND_ALICE"  "$BASE_SAND_BOB"  "$BASE_SAND_CHARLIE"
@@ -344,21 +449,21 @@ check_critical_logs() {
 # ════════════════════════════════════════════════════════════════════════
 
 info "=== verify-cross-chain.sh START ==="
+info "Run root  : $RUN_ROOT"
+info "Relay bin : $POLKADOT"
+info "Leaf bin  : $LEAFCHAIN"
 info "Relay spec: $RELAY_JSON"
 info "Para  spec: $PARA_JSON"
+info "Seed DB   : $ROOTCHAIN_SEED_DB"
 
-# ─── Step 0: Prior-run cleanup (idempotency) ─────────────────────────────────
-info "=== Step 0: Prior-run cleanup ==="
-cleanup_prior_runs
-
-# ─── Step 1: Validate prerequisites ──────────────────────────────────────────
-info "=== Step 1: Validate prerequisites ==="
+# ─── Step 0: Validate static prerequisites ────────────────────────────────────
+info "=== Step 0: Validate prerequisites ==="
 
 # Binaries
 for bin in "$POLKADOT" "$LEAFCHAIN"; do
     [[ -x "$bin" ]] || die "BINARY_MISSING" "Not executable: $bin"
     info "  OK binary: $bin"
-done
+ done
 
 # Para spec (input to --register-leafchain + collator --chain)
 [[ -f "$PARA_JSON" ]] || die "PARA_SPEC_MISSING" "Para spec not found: $PARA_JSON"
@@ -370,12 +475,16 @@ info "  OK para spec: $PARA_JSON (${PARA_SIZE} bytes)"
 [[ -d "$ROOTCHAIN_SEED_DB" ]] || die "SEED_DB_MISSING" "Seed DB not found: $ROOTCHAIN_SEED_DB"
 info "  OK seed DB: $ROOTCHAIN_SEED_DB"
 
-# ─── Step 1b: Regenerate forked relay spec (W8) ──────────────────────────────
-info "=== Step 1b: Regenerating forked relay spec via fork-genesis ==="
+# ─── Step 1: Prior-run cleanup (idempotency) ─────────────────────────────────
+info "=== Step 1: Prior-run cleanup ==="
+cleanup_prior_runs
+
+# ─── Step 2: Regenerate forked relay spec (W8) ───────────────────────────────
+info "=== Step 2: Regenerating forked relay spec via fork-genesis ==="
 info "  register-leafchain=${REGISTER_PARA_ID}:${PARA_JSON}"
 rm -f "$RELAY_JSON"
 "$POLKADOT" fork-genesis \
-    --chain=thxnet-testnet \
+    --chain="$RELAY_CHAIN" \
     --base-path="$ROOTCHAIN_SEED_DB" \
     --database=rocksdb \
     --register-leafchain="${REGISTER_PARA_ID}:${PARA_JSON}" \

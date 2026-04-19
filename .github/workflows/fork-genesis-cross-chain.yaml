@@ -1,0 +1,127 @@
+name: Fork Genesis Cross-Chain Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Runner label that has access to the required seed DB and binaries
+        required: true
+        default: hetzner
+        type: string
+      polkadot_bin:
+        description: Absolute path to the relay binary
+        required: true
+        default: /root/Works/rootchain/target/release/polkadot
+        type: string
+      leafchain_bin:
+        description: Absolute path to the leafchain binary
+        required: true
+        default: /root/Works/leafchains/target/release/thxnet-leafchain
+        type: string
+      para_json:
+        description: Absolute path to the parachain spec JSON used by --register-leafchain
+        required: true
+        default: /tmp/w6-t3-verify.json
+        type: string
+      seed_db:
+        description: Absolute path to the read-only rootchain seed DB
+        required: true
+        default: /data/forknet-test/rootchain-seed
+        type: string
+      relay_chain:
+        description: Relay chain name passed to polkadot fork-genesis --chain
+        required: true
+        default: thxnet-testnet
+        type: string
+      para_chain_id:
+        description: Parachain chain id used for keystore layout
+        required: true
+        default: sand_testnet
+        type: string
+      register_para_id:
+        description: Para id to register in the regenerated relay spec
+        required: true
+        default: "1003"
+        type: string
+      burn_in_seconds:
+        description: Burn-in duration after liveness gates pass
+        required: true
+        default: "300"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-genesis-cross-chain-${{ inputs.runner }}
+  cancel-in-progress: false
+
+jobs:
+  verify-cross-chain:
+    name: verify-cross-chain.sh
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 45
+    env:
+      VERIFY_CROSS_CHAIN_POLKADOT_BIN: ${{ inputs.polkadot_bin }}
+      VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN: ${{ inputs.leafchain_bin }}
+      VERIFY_CROSS_CHAIN_PARA_JSON: ${{ inputs.para_json }}
+      VERIFY_CROSS_CHAIN_SEED_DB: ${{ inputs.seed_db }}
+      VERIFY_CROSS_CHAIN_REGISTER_PARA_ID: ${{ inputs.register_para_id }}
+      VERIFY_CROSS_CHAIN_RELAY_CHAIN: ${{ inputs.relay_chain }}
+      VERIFY_CROSS_CHAIN_PARA_CHAIN_ID: ${{ inputs.para_chain_id }}
+      VERIFY_CROSS_CHAIN_RUN_ROOT: ${{ runner.temp }}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}
+      VERIFY_CROSS_CHAIN_RELAY_JSON: ${{ runner.temp }}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}/artifacts/forked-thxnet-testnet-w8.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v lsof >/dev/null
+          [[ -x "$VERIFY_CROSS_CHAIN_POLKADOT_BIN" ]]
+          [[ -x "$VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN" ]]
+          [[ -f "$VERIFY_CROSS_CHAIN_PARA_JSON" ]]
+          [[ -d "$VERIFY_CROSS_CHAIN_SEED_DB" ]]
+          mkdir -p "$VERIFY_CROSS_CHAIN_RUN_ROOT/artifacts"
+
+      - name: Run verify-cross-chain.sh
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/fork-genesis/verify-cross-chain.sh \
+            --burn-in-seconds="${{ inputs.burn_in_seconds }}" \
+            --run-root="$VERIFY_CROSS_CHAIN_RUN_ROOT"
+
+      - name: Upload cross-chain verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fork-genesis-cross-chain-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            ${{ env.VERIFY_CROSS_CHAIN_RUN_ROOT }}/logs/**
+            ${{ env.VERIFY_CROSS_CHAIN_RUN_ROOT }}/pids/**
+            ${{ env.VERIFY_CROSS_CHAIN_RELAY_JSON }}
+
+      - name: Append summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOG_DIR="$VERIFY_CROSS_CHAIN_RUN_ROOT/logs"
+          {
+            echo "## verify-cross-chain.sh"
+            echo
+            echo "- Runner: ${{ inputs.runner }}"
+            echo "- Relay binary: \`${VERIFY_CROSS_CHAIN_POLKADOT_BIN}\`"
+            echo "- Leafchain binary: \`${VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN}\`"
+            echo "- Para spec: \`${VERIFY_CROSS_CHAIN_PARA_JSON}\`"
+            echo "- Seed DB: \`${VERIFY_CROSS_CHAIN_SEED_DB}\`"
+            echo "- Run root: \`${VERIFY_CROSS_CHAIN_RUN_ROOT}\`"
+            echo
+            if [[ -d "$LOG_DIR" ]]; then
+              echo "### Run-root log files"
+              find "$LOG_DIR" -maxdepth 1 -type f | sort | sed 's/^/- `/' | sed 's/$/`/'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

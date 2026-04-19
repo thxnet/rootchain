@@ -90,16 +90,45 @@ end-to-end. It calls `fork-genesis` itself to regenerate the relay spec at start
 
 ### Prerequisites
 
+By default the script expects:
+
 - Para spec at `/tmp/w6-t3-verify.json`
   (produced by leafchain `fork-genesis` — W6)
 - Both binaries: `target/release/polkadot` and
   `../leafchains/target/release/thxnet-leafchain`
 - Read-only seed DB at `/data/forknet-test/rootchain-seed/`
 
+For CI / GitHub Actions these paths are now overrideable via CLI flags or
+`VERIFY_CROSS_CHAIN_*` environment variables, so the runner does **not** need
+those exact hardcoded paths as long as equivalent inputs are provided.
+
 ### Run
 
 ```bash
 bash scripts/fork-genesis/verify-cross-chain.sh
+```
+
+The script is now **GitHub Actions ready**:
+
+- all formerly hardcoded binary/spec/seed paths can be overridden by CLI flags
+  or `VERIFY_CROSS_CHAIN_*` environment variables
+- node state, pid files, and logs can be relocated with `--run-root=PATH`
+- the default run root becomes runner-local when `RUNNER_TEMP` / `GITHUB_RUN_ID`
+  are present, so CI does not need `/tmp/xcv-*` collisions or `/root/Works/...`
+  assumptions
+- a manual workflow wrapper lives at
+  `.github/workflows/fork-genesis-cross-chain.yaml`
+
+Example CI-friendly invocation:
+
+```bash
+export VERIFY_CROSS_CHAIN_POLKADOT_BIN="$GITHUB_WORKSPACE/target/release/polkadot"
+export VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN="/runner-assets/leafchains/thxnet-leafchain"
+export VERIFY_CROSS_CHAIN_PARA_JSON="/runner-assets/specs/w6-t3-verify.json"
+export VERIFY_CROSS_CHAIN_SEED_DB="/runner-assets/rootchain-seed"
+export VERIFY_CROSS_CHAIN_RUN_ROOT="$RUNNER_TEMP/verify-cross-chain-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+
+bash scripts/fork-genesis/verify-cross-chain.sh --burn-in-seconds=300
 ```
 
 This:
