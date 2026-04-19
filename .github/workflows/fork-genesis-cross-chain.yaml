@@ -46,6 +46,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: fork-genesis-cross-chain
@@ -58,6 +59,18 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+
+      - name: Login to the GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install docker-buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
 
       - name: Validate prerequisites
         shell: bash
@@ -107,15 +120,26 @@ jobs:
 
           build_workspace_polkadot() {
             local output_path="$1"
-            echo "Relay binary missing in pre-provisioned locations; building $output_path" >&2
-            command -v cargo >/dev/null
-            command -v clang-14 >/dev/null
-            command -v clang++-14 >/dev/null
-            export CC="${CC:-clang-14}"
-            export CXX="${CXX:-clang++-14}"
-            export LIBCLANG_PATH="${LIBCLANG_PATH:-/usr/lib/llvm-14/lib}"
-            export CXXFLAGS="${CXXFLAGS:--include cstdint}"
-            cargo build --release -p polkadot
+            local local_image="rootchain-cross-chain:${{ github.run_id }}-${{ github.run_attempt }}"
+            local container_name="rootchain-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "Relay binary missing in pre-provisioned locations; materialising $output_path via docker buildx" >&2
+            command -v docker >/dev/null
+            docker buildx version >/dev/null
+            docker buildx build \
+              --load \
+              --build-context sccache=docker-image://ghcr.io/thxnet/ci-containers/sccache:0.14.0 \
+              --build-context substrate-based=docker-image://ghcr.io/thxnet/ci-containers/substrate-based:build-2023.05.20-41956af \
+              --build-context ubuntu=docker-image://docker.io/library/ubuntu:22.04 \
+              --target rootchain \
+              --tag "$local_image" \
+              -f scripts/ci/dockerfiles/polkadot/polkadot_builder.Dockerfile \
+              .
+            mkdir -p "$(dirname "$output_path")"
+            docker rm -f "$container_name" >/dev/null 2>&1 || true
+            docker create --name "$container_name" "$local_image" >/dev/null
+            docker cp "$container_name:/usr/local/bin/polkadot" "$output_path"
+            docker rm -f "$container_name" >/dev/null
+            chmod +x "$output_path"
             [[ -x "$output_path" ]] || {
               echo "Built relay binary is still missing: $output_path" >&2
               return 1
