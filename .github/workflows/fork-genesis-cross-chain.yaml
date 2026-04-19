@@ -56,9 +56,6 @@ jobs:
     name: verify-cross-chain.sh
     runs-on: [hetzner]
     timeout-minutes: 45
-    env:
-      VERIFY_CROSS_CHAIN_RUN_ROOT: ${{ runner.temp }}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}
-      VERIFY_CROSS_CHAIN_RELAY_JSON: ${{ runner.temp }}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}/artifacts/forked-thxnet-testnet-w8.json
     steps:
       - uses: actions/checkout@v4
 
@@ -66,6 +63,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          RUN_ROOT="${RUNNER_TEMP}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}"
+          RELAY_JSON="${RUN_ROOT}/artifacts/forked-thxnet-testnet-w8.json"
           POLKADOT_BIN="${{ github.event.inputs.polkadot_bin || '/root/Works/rootchain/target/release/polkadot' }}"
           LEAFCHAIN_BIN="${{ github.event.inputs.leafchain_bin || '/root/Works/leafchains/target/release/thxnet-leafchain' }}"
           PARA_JSON="${{ github.event.inputs.para_json || '/tmp/w6-t3-verify.json' }}"
@@ -75,7 +74,11 @@ jobs:
           [[ -x "$LEAFCHAIN_BIN" ]]
           [[ -f "$PARA_JSON" ]]
           [[ -d "$SEED_DB" ]]
-          mkdir -p "$VERIFY_CROSS_CHAIN_RUN_ROOT/artifacts"
+          mkdir -p "$RUN_ROOT/artifacts"
+          {
+            echo "VERIFY_CROSS_CHAIN_RUN_ROOT=$RUN_ROOT"
+            echo "VERIFY_CROSS_CHAIN_RELAY_JSON=$RELAY_JSON"
+          } >> "$GITHUB_ENV"
 
       - name: Run verify-cross-chain.sh
         shell: bash
