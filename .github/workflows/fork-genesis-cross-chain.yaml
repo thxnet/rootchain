@@ -56,7 +56,7 @@ jobs:
   verify-cross-chain:
     name: verify-cross-chain.sh
     runs-on: [self-hosted, LKE]
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -127,6 +127,7 @@ jobs:
             docker buildx version >/dev/null
             docker buildx build \
               --load \
+              --cache-from type=registry,ref=ghcr.io/thxnet/rootchain:buildcache \
               --build-context sccache=docker-image://ghcr.io/thxnet/ci-containers/sccache:0.14.0 \
               --build-context substrate-based=docker-image://ghcr.io/thxnet/ci-containers/substrate-based:build-2023.05.20-41956af \
               --build-context ubuntu=docker-image://docker.io/library/ubuntu:22.04 \
@@ -226,7 +227,7 @@ jobs:
           {
             echo "## verify-cross-chain.sh"
             echo
-            echo "- Runner labels: `self-hosted, LKE`"
+            echo "- Runner labels: \`self-hosted, LKE\`"
             echo "- Relay binary: \`${VERIFY_CROSS_CHAIN_POLKADOT_BIN:-unresolved}\`"
             echo "- Leafchain binary: \`${VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN:-unresolved}\`"
             echo "- Para spec: \`${VERIFY_CROSS_CHAIN_PARA_JSON:-unresolved}\`"
