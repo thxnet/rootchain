@@ -13,6 +13,21 @@ on:
         required: false
         default: ""
         type: string
+      verification_bundle_ref:
+        description: Preferred scenario-specific verification bundle ref (local directory or OCI image containing /bundle/*)
+        required: false
+        default: ""
+        type: string
+      verification_scenario_id:
+        description: Optional expected scenario_id to validate inside manifest.json
+        required: false
+        default: w6-t3-verify
+        type: string
+      leafchain_binary_ref:
+        description: Optional OCI image ref overriding manifest.leafchain_binary.image when verification_bundle_ref is used
+        required: false
+        default: ""
+        type: string
       leafchain_image:
         description: Optional OCI image ref used to materialize thxnet-leafchain when no local binary path exists
         required: false
@@ -288,12 +303,17 @@ jobs:
           BOOTSTRAP_SEED_DB_LOG="$RUN_ROOT/logs/seed-db-bootstrap.log"
           LEAFCHAIN_IMAGE="${{ github.event.inputs.leafchain_image || 'ghcr.io/thxnet/leafchain:feature-fork-genesis' }}"
           GENESIS_IMAGE="${{ github.event.inputs.genesis_image || 'ghcr.io/thxnet/leafchain-genesis:feature-fork-genesis' }}"
+          VERIFICATION_BUNDLE_REF="${{ github.event.inputs.verification_bundle_ref || '' }}"
+          VERIFICATION_SCENARIO_ID="${{ github.event.inputs.verification_scenario_id || '' }}"
+          LEAFCHAIN_BINARY_REF_INPUT="${{ github.event.inputs.leafchain_binary_ref || '' }}"
 
           {
             echo "VERIFY_CROSS_CHAIN_RUN_ROOT=$RUN_ROOT"
             echo "VERIFY_CROSS_CHAIN_RELAY_JSON=$RELAY_JSON"
             echo "VERIFY_CROSS_CHAIN_LEAFCHAIN_IMAGE=$LEAFCHAIN_IMAGE"
             echo "VERIFY_CROSS_CHAIN_GENESIS_IMAGE=$GENESIS_IMAGE"
+            echo "VERIFY_CROSS_CHAIN_VERIFICATION_BUNDLE_REF=$VERIFICATION_BUNDLE_REF"
+            echo "VERIFY_CROSS_CHAIN_VERIFICATION_SCENARIO_ID=$VERIFICATION_SCENARIO_ID"
           } >> "$GITHUB_ENV"
 
           if ! POLKADOT_BIN="$(pick_existing executable 'relay binary' \
@@ -302,23 +322,55 @@ jobs:
             '/root/Works/rootchain/target/release/polkadot')"; then
             POLKADOT_BIN="$(build_workspace_polkadot "$WORKSPACE_POLKADOT")"
           fi
-          if ! LEAFCHAIN_BIN="$(pick_existing executable 'leafchain binary' \
-            '${{ github.event.inputs.leafchain_bin }}' \
-            "$WORKSPACE_LEAFCHAIN" \
-            '/runner-assets/leafchains/thxnet-leafchain' \
-            '/root/Works/leafchains/target/release/thxnet-leafchain')"; then
-            LEAFCHAIN_BIN="$(materialize_leafchain_from_image "$WORKSPACE_LEAFCHAIN" "$LEAFCHAIN_IMAGE")"
-          fi
+
+          LEAFCHAIN_BIN=""
           PARA_JSON=""
-          if candidate_para_json="$(pick_existing file 'parachain spec JSON' \
-            '${{ github.event.inputs.para_json }}' \
-            '/runner-assets/specs/w6-t3-verify.json' \
-            '/tmp/w6-t3-verify.json')"; then
-            candidate_para_json_bytes=$(wc -c < "$candidate_para_json")
-            if (( candidate_para_json_bytes >= 10000000 )); then
-              PARA_JSON="$candidate_para_json"
-            else
-              echo "Ignoring undersized pre-provisioned para spec (${candidate_para_json_bytes} bytes): $candidate_para_json" >&2
+          VERIFICATION_BUNDLE_MANIFEST=""
+          if [[ -n "$VERIFICATION_BUNDLE_REF" ]]; then
+            BUNDLE_OUTPUT_DIR="$RUN_ROOT/verification-bundle"
+            mkdir -p "$BUNDLE_OUTPUT_DIR"
+            bundle_cmd=(
+              bash scripts/fork-genesis/materialize-verification-bundle.sh
+              "--bundle-ref=$VERIFICATION_BUNDLE_REF"
+              "--output-dir=$BUNDLE_OUTPUT_DIR"
+              "--expected-relay-chain=${{ github.event.inputs.relay_chain || 'thxnet-testnet' }}"
+              "--expected-para-id=${{ github.event.inputs.register_para_id || '1003' }}"
+              "--expected-para-chain-id=${{ github.event.inputs.para_chain_id || 'sand_testnet' }}"
+            )
+            [[ -n "$VERIFICATION_SCENARIO_ID" ]] && bundle_cmd+=("--expected-scenario-id=$VERIFICATION_SCENARIO_ID")
+            [[ -n "$LEAFCHAIN_BINARY_REF_INPUT" ]] && bundle_cmd+=("--leafchain-binary-ref=$LEAFCHAIN_BINARY_REF_INPUT")
+            BUNDLE_ENV_PATH="$RUN_ROOT/verification-bundle/materialized.env"
+            "${bundle_cmd[@]}" > "$BUNDLE_ENV_PATH"
+            set -a
+            source "$BUNDLE_ENV_PATH"
+            set +a
+            PARA_JSON="$VERIFY_BUNDLE_PARA_JSON"
+            VERIFICATION_BUNDLE_MANIFEST="$VERIFY_BUNDLE_MANIFEST"
+            if [[ -n "$VERIFY_BUNDLE_LEAFCHAIN_BIN" ]]; then
+              LEAFCHAIN_BIN="$VERIFY_BUNDLE_LEAFCHAIN_BIN"
+            fi
+          fi
+
+          if [[ -z "$LEAFCHAIN_BIN" ]]; then
+            if ! LEAFCHAIN_BIN="$(pick_existing executable 'leafchain binary' \
+              '${{ github.event.inputs.leafchain_bin }}' \
+              "$WORKSPACE_LEAFCHAIN" \
+              '/runner-assets/leafchains/thxnet-leafchain' \
+              '/root/Works/leafchains/target/release/thxnet-leafchain')"; then
+              LEAFCHAIN_BIN="$(materialize_leafchain_from_image "$WORKSPACE_LEAFCHAIN" "$LEAFCHAIN_IMAGE")"
+            fi
+          fi
+          if [[ -z "$PARA_JSON" ]]; then
+            if candidate_para_json="$(pick_existing file 'parachain spec JSON' \
+              '${{ github.event.inputs.para_json }}' \
+              '/runner-assets/specs/w6-t3-verify.json' \
+              '/tmp/w6-t3-verify.json')"; then
+              candidate_para_json_bytes=$(wc -c < "$candidate_para_json")
+              if (( candidate_para_json_bytes >= 10000000 )); then
+                PARA_JSON="$candidate_para_json"
+              else
+                echo "Ignoring undersized pre-provisioned para spec (${candidate_para_json_bytes} bytes): $candidate_para_json" >&2
+              fi
             fi
           fi
           if [[ -z "$PARA_JSON" ]]; then
@@ -363,10 +415,14 @@ jobs:
             echo "VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN=$LEAFCHAIN_BIN"
             echo "VERIFY_CROSS_CHAIN_PARA_JSON=$PARA_JSON"
             echo "VERIFY_CROSS_CHAIN_SEED_DB=$SEED_DB"
+            echo "VERIFY_CROSS_CHAIN_VERIFICATION_BUNDLE_MANIFEST=$VERIFICATION_BUNDLE_MANIFEST"
           } >> "$GITHUB_ENV"
 
           echo "Using relay binary: $POLKADOT_BIN"
           echo "Using leafchain binary: $LEAFCHAIN_BIN"
+          if [[ -n "$VERIFICATION_BUNDLE_MANIFEST" ]]; then
+            echo "Using verification bundle manifest: $VERIFICATION_BUNDLE_MANIFEST"
+          fi
           echo "Using para spec: $PARA_JSON"
           echo "Using seed DB: $SEED_DB"
 
@@ -394,6 +450,7 @@ jobs:
           path: |
             ${{ env.VERIFY_CROSS_CHAIN_RUN_ROOT }}/logs/**
             ${{ env.VERIFY_CROSS_CHAIN_RUN_ROOT }}/pids/**
+            ${{ env.VERIFY_CROSS_CHAIN_RUN_ROOT }}/verification-bundle/**
             ${{ env.VERIFY_CROSS_CHAIN_RELAY_JSON }}
 
       - name: Append summary
@@ -409,6 +466,9 @@ jobs:
             echo "- Runner labels: \`hetzner-thxnet\`"
             echo "- Relay binary: \`${VERIFY_CROSS_CHAIN_POLKADOT_BIN:-unresolved}\`"
             echo "- Leafchain binary: \`${VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN:-unresolved}\`"
+            echo "- Verification bundle ref: \`${VERIFY_CROSS_CHAIN_VERIFICATION_BUNDLE_REF:-unresolved}\`"
+            echo "- Verification scenario id: \`${VERIFY_CROSS_CHAIN_VERIFICATION_SCENARIO_ID:-unresolved}\`"
+            echo "- Verification bundle manifest: \`${VERIFY_CROSS_CHAIN_VERIFICATION_BUNDLE_MANIFEST:-unresolved}\`"
             echo "- Leafchain image fallback: \`${VERIFY_CROSS_CHAIN_LEAFCHAIN_IMAGE:-unresolved}\`"
             echo "- Genesis image fallback: \`${VERIFY_CROSS_CHAIN_GENESIS_IMAGE:-unresolved}\`"
             echo "- Para spec: \`${VERIFY_CROSS_CHAIN_PARA_JSON:-unresolved}\`"

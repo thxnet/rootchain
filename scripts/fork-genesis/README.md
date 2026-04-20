@@ -82,6 +82,17 @@ Shell diagnostic LABELs (emitted to stderr, NOT exit codes): `FORK_JSON_FAIL`, `
 
 ---
 
+### Long-term producer/consumer artifact contract
+
+The current repo-bundled W6 para spec is an operational stopgap, not the final
+mechanism. The intended long-term boundary between `leafchains` (producer) and
+`rootchain` (consumer) is documented in
+[`ARTIFACT-CONTRACT.md`](./ARTIFACT-CONTRACT.md).
+
+In short: rootchain should eventually consume a **scenario-specific verification
+bundle** published by leafchains (binary + full para fixture + manifest), rather
+than assuming any generic raw spec or runner-local host path is equivalent.
+
 ## Cross-chain verification (relay + parachain)
 
 `verify-cross-chain.sh` boots a 3-validator relay + 3-collator para chain
@@ -108,6 +119,24 @@ local runner path exists, by pulling a published OCI image
 (`ghcr.io/thxnet/leafchain:feature-fork-genesis` by default) and copying
 `/usr/local/bin/thxnet-leafchain` out of it. Operators can override that image
 per dispatch via the `leafchain_image` input.
+
+### Preferred long-term contract path
+
+The preferred migration path is now a **scenario-specific verification bundle**:
+
+- `verification_bundle_ref` — local directory or OCI artifact/image containing
+  `manifest.json`, `para-spec.raw.json`, `validation-code.wasm`, and
+  `genesis-state.bin`
+- `verification_scenario_id` — optional expected `scenario_id` guard for the
+  manifest
+- `leafchain_binary_ref` — optional override if the workflow should ignore the
+  manifest's binary image ref
+
+The workflow materializes that bundle through
+`scripts/fork-genesis/materialize-verification-bundle.sh`, validates manifest
+identity + checksums before boot, and only falls back to loose compatibility
+inputs (`leafchain_bin`, `leafchain_image`, `genesis_image`, `para_json`) when
+no bundle ref is supplied.
 
 ### Run
 
