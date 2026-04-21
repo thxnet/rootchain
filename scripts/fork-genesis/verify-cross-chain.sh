@@ -1,21 +1,20 @@
 #!/usr/bin/env bash
-# verify-cross-chain.sh — Boot 3-validator relay + 3-collator parachain from forked specs
+# verify-cross-chain.sh — Boot 2-validator relay + 2-collator parachain from forked specs
 # and verify cross-chain liveness (relay finalized #1, para Imported #1, peer counts, burn-in).
 #
 # Topology:
-#   Relay:     Alice p2p=40331 rpc=9931 | Bob p2p=40332 rpc=9932 | Charlie p2p=40333 rpc=9933
-#   Para:      sand-Alice p2p=40334 rpc=9934 | sand-Bob p2p=40336 rpc=9936 | sand-Charlie p2p=40338 rpc=9938
-#   Emb-relay: sand-Alice p2p=40335 rpc=9935 | sand-Bob p2p=40337 rpc=9937 | sand-Charlie p2p=40339 rpc=9939
+#   Relay:     Alice p2p=40331 rpc=9931 | Bob p2p=40332 rpc=9932
+#   Para:      sand-Alice p2p=40334 rpc=9934 | sand-Bob p2p=40336 rpc=9936
+#   Emb-relay: sand-Alice p2p=40335 rpc=9935 | sand-Bob p2p=40337 rpc=9937
 #
 # Fixed node keys → deterministic peer IDs (Ed25519 via libp2p):
 #   Relay Alice:    0x000...0001 → 12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
 #   Para  Alice:    0x000...0002 → 12D3KooWHdiAxVd8uMQR1hGWXccidmfCwLqcMpGwR6QcTP6QRMuD
 #   Para  Bob:      0x000...0003 → 12D3KooWSCufgHzV4fCwRijfH2k3abrpAJxTKxEvN1FDuRXA2U9x
-#   Para  Charlie:  0x000...0004 → 12D3KooWSsChzF81YDUKpe9Uk5AHV5oqAaXAcWNSPYgoLauUk4st
 #
 # Boot phases:
-#   Phase A (relay-first): relay Alice → Bob → Charlie; gate on relay finalized #1 (60s).
-#   Phase B (collators): keystore insert BEFORE launch; sand-Alice → sand-Bob → sand-Charlie;
+#   Phase A (relay-first): relay Alice → Bob; gate on relay finalized #1 (60s).
+#   Phase B (collators): keystore insert BEFORE launch; sand-Alice → sand-Bob;
 #                        gate on para Imported #1 (120s).
 #
 # Exit codes (always 1 for failure — die() ensures this):
@@ -118,15 +117,13 @@ PARA_ALICE_PEER_ID="12D3KooWHdiAxVd8uMQR1hGWXccidmfCwLqcMpGwR6QcTP6QRMuD"
 PARA_ALICE_BOOTNODE="/ip4/127.0.0.1/tcp/40334/p2p/${PARA_ALICE_PEER_ID}"
 
 PARA_BOB_NODE_KEY="0000000000000000000000000000000000000000000000000000000000000003"
-PARA_CHARLIE_NODE_KEY="0000000000000000000000000000000000000000000000000000000000000004"
 
 # ─── Sr25519 public keys for aura keystore (hex without 0x) ─────────────────
-# Derived via: polkadot key inspect --scheme sr25519 //Alice|Bob|Charlie
+# Derived via: polkadot key inspect --scheme sr25519 //Alice|Bob
 # aura key type = 61757261 (4 bytes, ASCII "aura")
 AURA_KEY_TYPE_HEX="61757261"
 ALICE_SR25519_PUB="d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
 BOB_SR25519_PUB="8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"
-CHARLIE_SR25519_PUB="90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22"
 
 # ─── Para chain ID (matches spec's "id" field) ───────────────────────────────
 PARA_CHAIN_ID="${VERIFY_CROSS_CHAIN_PARA_CHAIN_ID:-${PARA_CHAIN_ID:-sand_testnet}}"
@@ -140,45 +137,37 @@ PID_ROOT="${RUN_ROOT}/pids"
 # ─── Base paths ──────────────────────────────────────────────────────────────
 BASE_RELAY_ALICE="${STATE_ROOT}/relay-alice"
 BASE_RELAY_BOB="${STATE_ROOT}/relay-bob"
-BASE_RELAY_CHARLIE="${STATE_ROOT}/relay-charlie"
 BASE_SAND_ALICE="${STATE_ROOT}/sand-alice"
 BASE_SAND_BOB="${STATE_ROOT}/sand-bob"
-BASE_SAND_CHARLIE="${STATE_ROOT}/sand-charlie"
 
 # ─── Logs ────────────────────────────────────────────────────────────────────
 LOG_RELAY_ALICE="${LOG_ROOT}/relay-alice.log"
 LOG_RELAY_BOB="${LOG_ROOT}/relay-bob.log"
-LOG_RELAY_CHARLIE="${LOG_ROOT}/relay-charlie.log"
 LOG_SAND_ALICE="${LOG_ROOT}/sand-alice.log"
 LOG_SAND_BOB="${LOG_ROOT}/sand-bob.log"
-LOG_SAND_CHARLIE="${LOG_ROOT}/sand-charlie.log"
 
-ALL_RELAY_LOGS=("$LOG_RELAY_ALICE" "$LOG_RELAY_BOB" "$LOG_RELAY_CHARLIE")
-ALL_PARA_LOGS=("$LOG_SAND_ALICE" "$LOG_SAND_BOB" "$LOG_SAND_CHARLIE")
+ALL_RELAY_LOGS=("$LOG_RELAY_ALICE" "$LOG_RELAY_BOB")
+ALL_PARA_LOGS=("$LOG_SAND_ALICE" "$LOG_SAND_BOB")
 ALL_LOGS=("${ALL_RELAY_LOGS[@]}" "${ALL_PARA_LOGS[@]}")
 
 # ─── PID tracking ────────────────────────────────────────────────────────────
 PID_RELAY_ALICE=""
 PID_RELAY_BOB=""
-PID_RELAY_CHARLIE=""
 PID_SAND_ALICE=""
 PID_SAND_BOB=""
-PID_SAND_CHARLIE=""
 
 PID_FILE_RELAY_ALICE="${PID_ROOT}/relay-alice.pid"
 PID_FILE_RELAY_BOB="${PID_ROOT}/relay-bob.pid"
-PID_FILE_RELAY_CHARLIE="${PID_ROOT}/relay-charlie.pid"
 PID_FILE_SAND_ALICE="${PID_ROOT}/sand-alice.pid"
 PID_FILE_SAND_BOB="${PID_ROOT}/sand-bob.pid"
-PID_FILE_SAND_CHARLIE="${PID_ROOT}/sand-charlie.pid"
 
 ALL_PID_FILES=(
-    "$PID_FILE_RELAY_ALICE" "$PID_FILE_RELAY_BOB" "$PID_FILE_RELAY_CHARLIE"
-    "$PID_FILE_SAND_ALICE"  "$PID_FILE_SAND_BOB"  "$PID_FILE_SAND_CHARLIE"
+    "$PID_FILE_RELAY_ALICE" "$PID_FILE_RELAY_BOB"
+    "$PID_FILE_SAND_ALICE"  "$PID_FILE_SAND_BOB"
 )
 
 # ─── Timing knobs ────────────────────────────────────────────────────────────
-RELAY_START_WAIT=10           # seconds after relay Alice start before Bob/Charlie
+RELAY_START_WAIT=10           # seconds after relay Alice start before Bob
 RELAY_FINALIZE_TIMEOUT=60     # seconds to wait for relay finalized #1
 PHASE_B_GRACE=60              # seconds grace for cumulus relay-light-client sync
 PARA_IMPORT_TIMEOUT=120       # seconds to wait for para Imported #1
@@ -209,28 +198,22 @@ done
 
 BASE_RELAY_ALICE="${STATE_ROOT}/relay-alice"
 BASE_RELAY_BOB="${STATE_ROOT}/relay-bob"
-BASE_RELAY_CHARLIE="${STATE_ROOT}/relay-charlie"
 BASE_SAND_ALICE="${STATE_ROOT}/sand-alice"
 BASE_SAND_BOB="${STATE_ROOT}/sand-bob"
-BASE_SAND_CHARLIE="${STATE_ROOT}/sand-charlie"
 LOG_RELAY_ALICE="${LOG_ROOT}/relay-alice.log"
 LOG_RELAY_BOB="${LOG_ROOT}/relay-bob.log"
-LOG_RELAY_CHARLIE="${LOG_ROOT}/relay-charlie.log"
 LOG_SAND_ALICE="${LOG_ROOT}/sand-alice.log"
 LOG_SAND_BOB="${LOG_ROOT}/sand-bob.log"
-LOG_SAND_CHARLIE="${LOG_ROOT}/sand-charlie.log"
-ALL_RELAY_LOGS=("$LOG_RELAY_ALICE" "$LOG_RELAY_BOB" "$LOG_RELAY_CHARLIE")
-ALL_PARA_LOGS=("$LOG_SAND_ALICE" "$LOG_SAND_BOB" "$LOG_SAND_CHARLIE")
+ALL_RELAY_LOGS=("$LOG_RELAY_ALICE" "$LOG_RELAY_BOB")
+ALL_PARA_LOGS=("$LOG_SAND_ALICE" "$LOG_SAND_BOB")
 ALL_LOGS=("${ALL_RELAY_LOGS[@]}" "${ALL_PARA_LOGS[@]}")
 PID_FILE_RELAY_ALICE="${PID_ROOT}/relay-alice.pid"
 PID_FILE_RELAY_BOB="${PID_ROOT}/relay-bob.pid"
-PID_FILE_RELAY_CHARLIE="${PID_ROOT}/relay-charlie.pid"
 PID_FILE_SAND_ALICE="${PID_ROOT}/sand-alice.pid"
 PID_FILE_SAND_BOB="${PID_ROOT}/sand-bob.pid"
-PID_FILE_SAND_CHARLIE="${PID_ROOT}/sand-charlie.pid"
 ALL_PID_FILES=(
-    "$PID_FILE_RELAY_ALICE" "$PID_FILE_RELAY_BOB" "$PID_FILE_RELAY_CHARLIE"
-    "$PID_FILE_SAND_ALICE"  "$PID_FILE_SAND_BOB"  "$PID_FILE_SAND_CHARLIE"
+    "$PID_FILE_RELAY_ALICE" "$PID_FILE_RELAY_BOB"
+    "$PID_FILE_SAND_ALICE"  "$PID_FILE_SAND_BOB"
 )
 
 # ─── Logging helpers ─────────────────────────────────────────────────────────
@@ -350,10 +333,10 @@ require_cmd wc
 
 # ─── Cleanup: prior runs ─────────────────────────────────────────────────────
 cleanup_prior_runs() {
-    info "Cleaning up prior runs (ports 40331-40339, 9931-9939)..."
+    info "Cleaning up prior runs (ports 40331-40337, 9931-9937)..."
     # Kill by port
-    for port in 40331 40332 40333 40334 40335 40336 40337 40338 40339 \
-                9931  9932  9933  9934  9935  9936  9937  9938  9939; do
+    for port in 40331 40332 40334 40335 40336 40337 \
+                9931  9932  9934  9935  9936  9937; do
         local pids pid
         pids=$(port_pids "$port")
         for pid in $pids; do
@@ -377,8 +360,8 @@ cleanup_prior_runs() {
     # Clear old node logs (not the script's own run log which uses a different prefix)
     rm -f "${ALL_LOGS[@]}"
     # Clear base paths for fresh start (avoids keystore/DB conflicts)
-    rm -rf "$BASE_RELAY_ALICE" "$BASE_RELAY_BOB" "$BASE_RELAY_CHARLIE" \
-           "$BASE_SAND_ALICE"  "$BASE_SAND_BOB"  "$BASE_SAND_CHARLIE"
+    rm -rf "$BASE_RELAY_ALICE" "$BASE_RELAY_BOB" \
+           "$BASE_SAND_ALICE"  "$BASE_SAND_BOB"
     info "Prior-run cleanup complete."
 }
 
@@ -386,14 +369,14 @@ cleanup_prior_runs() {
 do_cleanup_on_exit() {
     if [[ "$KEEP_RUNNING" == "true" ]]; then
         info "--keep-running active. Nodes left alive:"
-        info "  relay: ${PID_RELAY_ALICE:-?} ${PID_RELAY_BOB:-?} ${PID_RELAY_CHARLIE:-?}"
-        info "  para:  ${PID_SAND_ALICE:-?} ${PID_SAND_BOB:-?} ${PID_SAND_CHARLIE:-?}"
+        info "  relay: ${PID_RELAY_ALICE:-?} ${PID_RELAY_BOB:-?}"
+        info "  para:  ${PID_SAND_ALICE:-?} ${PID_SAND_BOB:-?}"
         return
     fi
-    info "Stopping all 6 nodes..."
+    info "Stopping all 4 nodes..."
     local all_pids=(
-        "${PID_RELAY_ALICE:-}"  "${PID_RELAY_BOB:-}"  "${PID_RELAY_CHARLIE:-}"
-        "${PID_SAND_ALICE:-}"   "${PID_SAND_BOB:-}"   "${PID_SAND_CHARLIE:-}"
+        "${PID_RELAY_ALICE:-}"  "${PID_RELAY_BOB:-}"
+        "${PID_SAND_ALICE:-}"   "${PID_SAND_BOB:-}"
     )
     for pid in "${all_pids[@]}"; do
         [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
@@ -427,7 +410,7 @@ insert_aura_key() {
 # ─── Collator launch helper ───────────────────────────────────────────────────
 # Launches a cumulus collator with the dual-binary invocation pattern.
 # Args:
-#   $1  = persona flag (--alice|--bob|--charlie)
+#   $1  = persona flag (--alice|--bob)
 #   $2  = base path
 #   $3  = para p2p port
 #   $4  = para rpc port
@@ -503,13 +486,13 @@ wait_for_pattern() {
     return 1
 }
 
-# ─── Check all 6 PIDs alive ──────────────────────────────────────────────────
+# ─── Check all 4 PIDs alive ──────────────────────────────────────────────────
 check_all_pids_alive() {
     local all_pids=(
-        "$PID_RELAY_ALICE" "$PID_RELAY_BOB" "$PID_RELAY_CHARLIE"
-        "$PID_SAND_ALICE"  "$PID_SAND_BOB"  "$PID_SAND_CHARLIE"
+        "$PID_RELAY_ALICE" "$PID_RELAY_BOB"
+        "$PID_SAND_ALICE"  "$PID_SAND_BOB"
     )
-    local names=("relay-Alice" "relay-Bob" "relay-Charlie" "sand-Alice" "sand-Bob" "sand-Charlie")
+    local names=("relay-Alice" "relay-Bob" "sand-Alice" "sand-Bob")
     local any_dead=false
     for i in "${!all_pids[@]}"; do
         local pid="${all_pids[$i]}"
@@ -643,26 +626,7 @@ PID_RELAY_BOB=$!
 echo "$PID_RELAY_BOB" > "$PID_FILE_RELAY_BOB"
 info "Relay Bob started (PID=$PID_RELAY_BOB)"
 
-# Charlie
-mkdir -p "$BASE_RELAY_CHARLIE"
-"$POLKADOT" \
-    --charlie \
-    --base-path="$BASE_RELAY_CHARLIE" \
-    --chain="$RELAY_JSON" \
-    --port=40333 \
-    --rpc-port=9933 \
-    --bootnodes="$RELAY_ALICE_BOOTNODE" \
-    --rpc-methods=Unsafe \
-    --no-prometheus \
-    --no-telemetry \
-    --no-mdns \
-    --force-authoring \
-    > "$LOG_RELAY_CHARLIE" 2>&1 &
-PID_RELAY_CHARLIE=$!
-echo "$PID_RELAY_CHARLIE" > "$PID_FILE_RELAY_CHARLIE"
-info "Relay Charlie started (PID=$PID_RELAY_CHARLIE)"
-
-info "All 3 relay validators started: Alice=$PID_RELAY_ALICE Bob=$PID_RELAY_BOB Charlie=$PID_RELAY_CHARLIE"
+info "Both relay validators started: Alice=$PID_RELAY_ALICE Bob=$PID_RELAY_BOB"
 
 # ─── Gate A: Relay finalized #1 within 60s ───────────────────────────────────
 info "=== Gate A: Waiting for relay finalized #1 (timeout=${RELAY_FINALIZE_TIMEOUT}s) ==="
@@ -686,7 +650,6 @@ info "=== Phase B: Inserting aura keystores (BEFORE collator launch) ==="
 # Must happen BEFORE launch — else "no authority key found" silent fail
 insert_aura_key "$BASE_SAND_ALICE"   "//Alice"   "$ALICE_SR25519_PUB"
 insert_aura_key "$BASE_SAND_BOB"     "//Bob"     "$BOB_SR25519_PUB"
-insert_aura_key "$BASE_SAND_CHARLIE" "//Charlie" "$CHARLIE_SR25519_PUB"
 
 info "Keystores inserted. Waiting ${PHASE_B_GRACE}s grace for cumulus relay-light-client sync baseline..."
 sleep "$PHASE_B_GRACE"
@@ -720,30 +683,16 @@ PID_SAND_BOB=$(launch_collator \
 echo "$PID_SAND_BOB" > "$PID_FILE_SAND_BOB"
 info "sand-Bob started (PID=$PID_SAND_BOB, para_p2p=40336, emb_relay_p2p=40337)"
 
-sleep 2
+info "All 4 nodes running."
+info "  Relay:  Alice=$PID_RELAY_ALICE Bob=$PID_RELAY_BOB"
+info "  Para:   Alice=$PID_SAND_ALICE  Bob=$PID_SAND_BOB"
 
-# sand-Charlie (same boot pattern as Bob)
-PID_SAND_CHARLIE=$(launch_collator \
-    "--charlie" \
-    "$BASE_SAND_CHARLIE" \
-    40338 9938 \
-    "$PARA_CHARLIE_NODE_KEY" \
-    40339 9939 \
-    "$PARA_ALICE_BOOTNODE" \
-    "$LOG_SAND_CHARLIE")
-echo "$PID_SAND_CHARLIE" > "$PID_FILE_SAND_CHARLIE"
-info "sand-Charlie started (PID=$PID_SAND_CHARLIE, para_p2p=40338, emb_relay_p2p=40339)"
-
-info "All 6 nodes running."
-info "  Relay:  Alice=$PID_RELAY_ALICE Bob=$PID_RELAY_BOB Charlie=$PID_RELAY_CHARLIE"
-info "  Para:   Alice=$PID_SAND_ALICE  Bob=$PID_SAND_BOB  Charlie=$PID_SAND_CHARLIE"
-
-# ─── Criterion 2: All 6 PIDs alive ───────────────────────────────────────────
-info "=== Criterion 2: All 6 PIDs alive check ==="
+# ─── Criterion 2: All 4 PIDs alive ───────────────────────────────────────────
+info "=== Criterion 2: All 4 PIDs alive check ==="
 if ! check_all_pids_alive; then
     die "CRITICAL_LOG_HIT" "One or more nodes died at Phase B startup"
 fi
-info "PASS Criterion 2: All 6 PIDs alive"
+info "PASS Criterion 2: All 4 PIDs alive"
 
 # ─── Gate B / Criterion 4: Para Imported #1 within 120s ──────────────────────
 info "=== Gate B / Criterion 4: Waiting for para Imported #1 (timeout=${PARA_IMPORT_TIMEOUT}s) ==="
@@ -836,11 +785,11 @@ info "=== Final critical log sweep ==="
 if ! check_critical_logs; then
     die "CRITICAL_LOG_HIT" "Critical log pattern found in final sweep"
 fi
-info "PASS: Zero critical log hits across all 6 logs"
+info "PASS: Zero critical log hits across all 4 logs"
 
 # ─── Criterion 7: Idempotency — no orphan PIDs ───────────────────────────────
 info "=== Criterion 7: Clean exit check ==="
-info "All 6 PID files will be removed by exit trap."
+info "All 4 PID files will be removed by exit trap."
 info "Orphan PID check: all PIDs accounted for and will be terminated by trap."
 
 # ─── Final report ────────────────────────────────────────────────────────────
@@ -851,7 +800,7 @@ info "════════════════════════�
 info ""
 info "Acceptance criteria results:"
 info "  [1] Script exit 0                                  : PASS (about to happen)"
-info "  [2] All 6 PIDs alive at criterion 3 check          : PASS"
+info "  [2] All 4 PIDs alive at criterion 3 check          : PASS"
 info "  [3] Relay finalized #1 within 60s                  : PASS (${RELAY_FINALIZE_LINE})"
 info "  [4] Para Imported #1 within 120s of Phase B        : PASS (${PARA_IMPORT_LINE})"
 info "  [5] Each collator ≥1 para p2p peer at +${PEER_CHECK_DELAY}s      : PASS"

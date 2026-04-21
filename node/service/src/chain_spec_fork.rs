@@ -259,16 +259,15 @@ fn authority_tuple_from_keyrings(sr: Sr25519Keyring, ed: Ed25519Keyring) -> Auth
 	)
 }
 
-/// Returns the standard Alice / Bob / Charlie dev authority set.
+/// Returns the standard Alice / Bob dev authority set.
 ///
-/// All keys use bare `//Alice`, `//Bob`, `//Charlie` seeds — no sub-derivation.
+/// All keys use bare `//Alice`, `//Bob` seeds — no sub-derivation.
 /// Stash == Controller for each authority.
 #[cfg(feature = "polkadot-native")]
 pub fn dev_authority_set() -> Vec<AuthorityTuple> {
 	vec![
 		authority_tuple_from_keyrings(Sr25519Keyring::Alice, Ed25519Keyring::Alice),
 		authority_tuple_from_keyrings(Sr25519Keyring::Bob, Ed25519Keyring::Bob),
-		authority_tuple_from_keyrings(Sr25519Keyring::Charlie, Ed25519Keyring::Charlie),
 	]
 }
 
@@ -1378,12 +1377,12 @@ mod tests {
 	// W2 tests: dev_authority_set + assemble_thxnet_testnet_fork_genesis
 	// -----------------------------------------------------------------------
 
-	/// dev_authority_set must return exactly 3 entries (Alice, Bob, Charlie).
+	/// dev_authority_set must return exactly 2 entries (Alice, Bob).
 	#[cfg(feature = "polkadot-native")]
 	#[test]
-	fn dev_authority_set_returns_three_authorities() {
+	fn dev_authority_set_returns_two_authorities() {
 		let authorities = dev_authority_set();
-		assert_eq!(authorities.len(), 3, "dev_authority_set must return exactly 3 authorities");
+		assert_eq!(authorities.len(), 2, "dev_authority_set must return exactly 2 authorities");
 	}
 
 	/// Every field in every authority tuple must be non-zero (i.e., not the
@@ -1433,30 +1432,26 @@ mod tests {
 		}
 	}
 
-	/// Alice's, Bob's, and Charlie's BabeIds must be pairwise distinct.
+	/// Alice's and Bob's BabeIds must be distinct.
 	#[cfg(feature = "polkadot-native")]
 	#[test]
-	fn alice_bob_charlie_babe_keys_differ() {
+	fn alice_bob_babe_keys_differ() {
 		use sp_core::crypto::ByteArray;
 		let auths = dev_authority_set();
-		let (alice_babe, bob_babe, charlie_babe) =
-			(auths[0].2.as_slice(), auths[1].2.as_slice(), auths[2].2.as_slice());
+		let (alice_babe, bob_babe) =
+			(auths[0].2.as_slice(), auths[1].2.as_slice());
 		assert_ne!(alice_babe, bob_babe, "Alice and Bob BabeIds must differ");
-		assert_ne!(alice_babe, charlie_babe, "Alice and Charlie BabeIds must differ");
-		assert_ne!(bob_babe, charlie_babe, "Bob and Charlie BabeIds must differ");
 	}
 
-	/// Alice's, Bob's, and Charlie's GrandpaIds must be pairwise distinct.
+	/// Alice's and Bob's GrandpaIds must be distinct.
 	#[cfg(feature = "polkadot-native")]
 	#[test]
-	fn alice_bob_charlie_grandpa_keys_differ() {
+	fn alice_bob_grandpa_keys_differ() {
 		use sp_core::crypto::ByteArray;
 		let auths = dev_authority_set();
-		let (alice_gp, bob_gp, charlie_gp) =
-			(auths[0].3.as_slice(), auths[1].3.as_slice(), auths[2].3.as_slice());
+		let (alice_gp, bob_gp) =
+			(auths[0].3.as_slice(), auths[1].3.as_slice());
 		assert_ne!(alice_gp, bob_gp, "Alice and Bob GrandpaIds must differ");
-		assert_ne!(alice_gp, charlie_gp, "Alice and Charlie GrandpaIds must differ");
-		assert_ne!(bob_gp, charlie_gp, "Bob and Charlie GrandpaIds must differ");
 	}
 
 	/// Smoke-test the shape of the assembled fork genesis config.
@@ -1484,11 +1479,11 @@ mod tests {
 			vec![], // paras_to_register — empty for shape smoke test
 		);
 
-		// 3 session keys (one per authority)
-		assert_eq!(genesis.session.keys.len(), 3, "session.keys must have 3 entries");
+		// 2 session keys (one per authority)
+		assert_eq!(genesis.session.keys.len(), 2, "session.keys must have 2 entries");
 
-		// 3 stakers (one per authority)
-		assert_eq!(genesis.staking.stakers.len(), 3, "staking.stakers must have 3 entries");
+		// 2 stakers (one per authority)
+		assert_eq!(genesis.staking.stakers.len(), 2, "staking.stakers must have 2 entries");
 
 		// sudo key is Alice
 		assert_eq!(genesis.sudo.key, Some(root_key), "sudo.key must be Alice");
@@ -1542,11 +1537,11 @@ mod tests {
 			vec![], // paras_to_register
 		);
 
-		// 3 session keys (one per authority)
-		assert_eq!(genesis.session.keys.len(), 3, "session.keys must have 3 entries");
+		// 2 session keys (one per authority)
+		assert_eq!(genesis.session.keys.len(), 2, "session.keys must have 2 entries");
 
-		// 3 stakers (one per authority)
-		assert_eq!(genesis.staking.stakers.len(), 3, "staking.stakers must have 3 entries");
+		// 2 stakers (one per authority)
+		assert_eq!(genesis.staking.stakers.len(), 2, "staking.stakers must have 2 entries");
 
 		// sudo key is Alice
 		assert_eq!(genesis.sudo.key, Some(root_key), "sudo.key must be Alice");
@@ -1629,22 +1624,21 @@ mod tests {
 		);
 	}
 
-	/// With 3 validators and 1 registered parachain, the scheduler formula
-	/// (mirror of runtime scheduler.rs:268-299 for base_size=3, larger=0) must
-	/// produce exactly one group `[0,1,2]` and one unoccupied availability core.
+	/// With 2 validators and 1 registered parachain, the scheduler formula
+	/// (mirror of runtime scheduler.rs:268-299 for base_size=2, larger=0) must
+	/// produce exactly one group `[0,1]` and one unoccupied availability core.
 	#[test]
-	fn fix_para_scheduler_single_parachain_three_validators() {
+	fn fix_para_scheduler_single_parachain_two_validators() {
 		use codec::{Compact, Decode, Encode};
 
 		let mut storage = Storage { top: Default::default(), children_default: Default::default() };
 
-		// Session.Validators — we only need the compact length prefix to decode as
-		// Vec::<()>::len == 3. Use `Vec<u8>` of 3 zero bytes (any content works because
-		// the function only reads the length prefix).
+		// Session.Validators — encode the real dev validator ids so SessionInfo
+		// reconstruction can decode successfully.
 		let session_validators_key: Vec<u8> =
 			[twox_128(b"Session"), twox_128(b"Validators")].concat();
-		let validators_stub: Vec<u8> = vec![0u8, 0u8, 0u8];
-		let _ = storage.top.insert(session_validators_key, validators_stub.encode());
+		let validators: Vec<ValidatorId> = dev_authority_set().iter().map(|a| a.5.clone()).collect();
+		let _ = storage.top.insert(session_validators_key, validators.encode());
 
 		// Paras.Parachains — length 1, content doesn't matter for the formula.
 		let paras_parachains_key: Vec<u8> =
@@ -1665,7 +1659,7 @@ mod tests {
 		let groups: Vec<Vec<u32>> =
 			Vec::decode(&mut &groups_bytes[..]).expect("decode groups");
 		assert_eq!(groups.len(), 1, "n_cores=1 → exactly 1 group");
-		assert_eq!(groups[0], vec![0u32, 1u32, 2u32], "group must contain all 3 validators");
+		assert_eq!(groups[0], vec![0u32, 1u32], "group must contain both validators");
 
 		let cores_bytes = storage.top.get(&cores_key).expect("cores key written");
 		let mut cores_input: &[u8] = &cores_bytes[..];
