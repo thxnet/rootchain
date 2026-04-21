@@ -80,7 +80,7 @@ concurrency:
 jobs:
   verify-cross-chain:
     name: verify-cross-chain.sh
-    runs-on: hetzner-thxnet
+    runs-on: [self-hosted, LKE]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
@@ -463,7 +463,7 @@ jobs:
           {
             echo "## verify-cross-chain.sh"
             echo
-            echo "- Runner labels: \`hetzner-thxnet\`"
+            echo "- Runner labels: \`self-hosted, LKE\`"
             echo "- Relay binary: \`${VERIFY_CROSS_CHAIN_POLKADOT_BIN:-unresolved}\`"
             echo "- Leafchain binary: \`${VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN:-unresolved}\`"
             echo "- Verification bundle ref: \`${VERIFY_CROSS_CHAIN_VERIFICATION_BUNDLE_REF:-unresolved}\`"
