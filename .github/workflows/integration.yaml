@@ -31,7 +31,7 @@ concurrency:
 jobs:
   image:
     name: Build and publish images
-    runs-on: [hetzner]
+    runs-on: hetzner-thxnet
     strategy:
       fail-fast: false
       matrix:
