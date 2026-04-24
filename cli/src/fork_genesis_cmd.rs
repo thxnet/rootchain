@@ -122,6 +122,13 @@ impl ForkGenesisCmd {
 		let paras_to_register: Vec<(ParaId, ParaGenesisArgs)> =
 			build_paras_to_register(&self.register_leafchain, &self.leafchain_binary)?;
 
+		// Snapshot the para IDs before `paras_to_register` is consumed by
+		// `select_runtime_and_assemble_fresh`; step 7.5 needs them for the
+		// `MostRecentContext` initialisation fixup.
+		#[cfg(feature = "polkadot-native")]
+		let registered_para_ids: Vec<ParaId> =
+			paras_to_register.iter().map(|(id, _)| *id).collect();
+
 		// 5. Assemble fresh genesis storage for the target network.
 		//    Under polkadot-native we dispatch to the correct thxnet builder;
 		//    without the feature we use empty storage (test/CI path).
@@ -154,6 +161,21 @@ impl ForkGenesisCmd {
 		#[cfg(feature = "polkadot-native")]
 		service::chain_spec_fork::fix_para_scheduler_state(&mut merged).map_err(|e| {
 			sc_cli::Error::Input(format!("fix_para_scheduler_state failed: {}", e))
+		})?;
+
+		// 7.5. Initialise `Paras.MostRecentContext(para_id) = 0` for each
+		//      registered para. `pallet_paras::build()` writes Heads +
+		//      CurrentCodeHash but not MostRecentContext; v1.12.0+
+		//      paras_inherent treats `None` as `DisallowedRelayParent` and
+		//      blocks all inclusions, stalling the para permanently after the
+		//      first runtime upgrade. See function docstring for causal chain.
+		#[cfg(feature = "polkadot-native")]
+		service::chain_spec_fork::fix_paras_most_recent_context(
+			&mut merged,
+			&registered_para_ids,
+		)
+		.map_err(|e| {
+			sc_cli::Error::Input(format!("fix_paras_most_recent_context failed: {}", e))
 		})?;
 
 		// 8. --runtime-wasm override: applied AFTER merge, BEFORE serialize.

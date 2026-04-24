@@ -1,0 +1,482 @@
+name: Fork Genesis Cross-Chain Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      polkadot_bin:
+        description: Optional absolute path to the relay binary (auto-detected if empty)
+        required: false
+        default: ""
+        type: string
+      leafchain_bin:
+        description: Optional absolute path to the leafchain binary (auto-detected if empty)
+        required: false
+        default: ""
+        type: string
+      verification_bundle_ref:
+        description: Preferred scenario-specific verification bundle ref (local directory or OCI image containing /bundle/*)
+        required: false
+        default: ""
+        type: string
+      verification_scenario_id:
+        description: Optional expected scenario_id to validate inside manifest.json
+        required: false
+        default: w6-t3-verify
+        type: string
+      leafchain_binary_ref:
+        description: Optional OCI image ref overriding manifest.leafchain_binary.image when verification_bundle_ref is used
+        required: false
+        default: ""
+        type: string
+      leafchain_image:
+        description: Optional OCI image ref used to materialize thxnet-leafchain when no local binary path exists
+        required: false
+        default: ghcr.io/thxnet/leafchain:feature-fork-genesis
+        type: string
+      genesis_image:
+        description: Optional OCI image ref used to materialize the parachain spec JSON when no local path exists
+        required: false
+        default: ghcr.io/thxnet/leafchain-genesis:feature-fork-genesis
+        type: string
+      para_json:
+        description: Optional absolute path to the parachain spec JSON used by --register-leafchain (auto-detected if empty)
+        required: false
+        default: ""
+        type: string
+      seed_db:
+        description: Optional absolute path to the read-only rootchain seed DB (auto-detected if empty)
+        required: false
+        default: ""
+        type: string
+      relay_chain:
+        description: Relay chain name passed to polkadot fork-genesis --chain
+        required: true
+        default: thxnet-testnet
+        type: string
+      para_chain_id:
+        description: Parachain chain id used for keystore layout
+        required: true
+        default: sand_testnet
+        type: string
+      register_para_id:
+        description: Para id to register in the regenerated relay spec
+        required: true
+        default: "1003"
+        type: string
+      burn_in_seconds:
+        description: Burn-in duration after liveness gates pass
+        required: true
+        default: "300"
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: fork-genesis-cross-chain
+  cancel-in-progress: false
+
+jobs:
+  verify-cross-chain:
+    name: verify-cross-chain.sh
+    runs-on: [self-hosted, LKE]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to the GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install docker-buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
+
+      - name: Validate prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pick_existing() {
+            local kind="$1"
+            local label="$2"
+            shift 2
+            local candidate
+            for candidate in "$@"; do
+              [[ -n "$candidate" ]] || continue
+              case "$kind" in
+                executable)
+                  if [[ -x "$candidate" ]]; then
+                    printf '%s\n' "$candidate"
+                    return 0
+                  fi
+                  ;;
+                file)
+                  if [[ -f "$candidate" ]]; then
+                    printf '%s\n' "$candidate"
+                    return 0
+                  fi
+                  ;;
+                directory)
+                  if [[ -d "$candidate" ]]; then
+                    printf '%s\n' "$candidate"
+                    return 0
+                  fi
+                  ;;
+                *)
+                  echo "Unsupported prerequisite kind: $kind" >&2
+                  return 2
+                  ;;
+              esac
+            done
+
+            echo "Missing ${label}. Tried:" >&2
+            for candidate in "$@"; do
+              [[ -n "$candidate" ]] || continue
+              echo "  - $candidate" >&2
+            done
+            return 1
+          }
+
+          build_workspace_polkadot() {
+            local output_path="$1"
+            local local_image="rootchain-cross-chain:${{ github.run_id }}-${{ github.run_attempt }}"
+            local container_name="rootchain-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "Relay binary missing in pre-provisioned locations; materialising $output_path via docker buildx" >&2
+            command -v docker >/dev/null
+            docker buildx version >/dev/null
+            docker buildx build \
+              --load \
+              --cache-from type=registry,ref=ghcr.io/thxnet/rootchain:buildcache \
+              --build-context sccache=docker-image://ghcr.io/thxnet/ci-containers/sccache:0.14.0 \
+              --build-context substrate-based=docker-image://ghcr.io/thxnet/ci-containers/substrate-based:build-2023.05.20-41956af \
+              --build-context ubuntu=docker-image://docker.io/library/ubuntu:22.04 \
+              --target rootchain \
+              --tag "$local_image" \
+              -f scripts/ci/dockerfiles/polkadot/polkadot_builder.Dockerfile \
+              .
+            mkdir -p "$(dirname "$output_path")"
+            docker rm -f "$container_name" >/dev/null 2>&1 || true
+            docker create --name "$container_name" "$local_image" >/dev/null
+            docker cp "$container_name:/usr/local/bin/polkadot" "$output_path"
+            docker rm -f "$container_name" >/dev/null
+            chmod +x "$output_path"
+            [[ -x "$output_path" ]] || {
+              echo "Built relay binary is still missing: $output_path" >&2
+              return 1
+            }
+            printf '%s\n' "$output_path"
+          }
+
+          materialize_leafchain_from_image() {
+            local output_path="$1"
+            local image_ref="$2"
+            local container_name="leafchain-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "Leafchain binary missing in pre-provisioned locations; materialising $output_path from $image_ref" >&2
+            command -v docker >/dev/null
+            docker image inspect "$image_ref" >/dev/null 2>&1 || docker pull "$image_ref" >/dev/null
+            mkdir -p "$(dirname "$output_path")"
+            docker rm -f "$container_name" >/dev/null 2>&1 || true
+            docker create --name "$container_name" "$image_ref" >/dev/null
+            docker cp "$container_name:/usr/local/bin/thxnet-leafchain" "$output_path"
+            docker rm -f "$container_name" >/dev/null
+            chmod +x "$output_path"
+            [[ -x "$output_path" ]] || {
+              echo "Materialized leafchain binary is still missing: $output_path" >&2
+              return 1
+            }
+            printf '%s\n' "$output_path"
+          }
+
+          materialize_para_json_from_image() {
+            local output_path="$1"
+            local image_ref="$2"
+            local para_chain_id="$3"
+            local container_name="leafchain-genesis-${{ github.run_id }}-${{ github.run_attempt }}"
+            # Derive spec filename: sand_testnet → testnet.leafchain.sand.raw.json
+            # Pattern: {last_segment}.leafchain.{prefix}.raw.json
+            local last_segment="${para_chain_id##*_}"
+            local net_prefix="${para_chain_id%_*}"
+            local spec_filename="${last_segment}.leafchain.${net_prefix}.raw.json"
+            echo "Para spec missing in pre-provisioned locations; materialising $output_path from $image_ref (spec: $spec_filename)" >&2
+            command -v docker >/dev/null
+            docker image inspect "$image_ref" >/dev/null 2>&1 || docker pull "$image_ref" >/dev/null
+            mkdir -p "$(dirname "$output_path")"
+            docker rm -f "$container_name" >/dev/null 2>&1 || true
+            docker create --name "$container_name" "$image_ref" >/dev/null
+            docker cp "$container_name:/chain-specs/$spec_filename" "$output_path"
+            docker rm -f "$container_name" >/dev/null
+            [[ -f "$output_path" ]] || {
+              echo "Materialized para spec is still missing: $output_path" >&2
+              return 1
+            }
+            printf '%s\n' "$output_path"
+          }
+
+          materialize_bundled_para_json() {
+            local output_path="$1"
+            local bundled_path="$GITHUB_WORKSPACE/scripts/fork-genesis/assets/w6-t3-verify.json.xz"
+            local tmp_output="${output_path}.tmp"
+            echo "Para spec missing in pre-provisioned locations; materialising $output_path from bundled repo asset $bundled_path" >&2
+            [[ -f "$bundled_path" ]] || {
+              echo "Bundled para spec asset is missing: $bundled_path" >&2
+              return 1
+            }
+            command -v python3 >/dev/null 2>&1 || {
+              echo "python3 is required to materialize bundled para spec" >&2
+              return 1
+            }
+            mkdir -p "$(dirname "$output_path")"
+            rm -f "$tmp_output"
+            python3 -c 'import lzma, shutil, sys; src, dst = sys.argv[1:3]; infile = lzma.open(src, "rb"); outfile = open(dst, "wb"); shutil.copyfileobj(infile, outfile); infile.close(); outfile.close()' "$bundled_path" "$tmp_output" || return 1
+            mv "$tmp_output" "$output_path"
+            [[ -f "$output_path" ]] || {
+              echo "Bundled para spec did not materialize: $output_path" >&2
+              return 1
+            }
+            printf '%s\n' "$output_path"
+          }
+
+          bootstrap_seed_db_from_genesis() {
+            local output_path="$1"
+            local polkadot_bin="$2"
+            local relay_chain="$3"
+            local log_path="$4"
+            local bootstrap_pid=""
+            local db_bytes=0
+            echo "Seed DB missing; bootstrapping from $relay_chain genesis using $polkadot_bin" >&2
+            mkdir -p "$output_path" "$(dirname "$log_path")"
+            rm -f "$log_path"
+            "$polkadot_bin" \
+              --chain="$relay_chain" \
+              --base-path="$output_path" \
+              --no-prometheus \
+              --no-telemetry \
+              --no-mdns \
+              --reserved-only \
+              >"$log_path" 2>&1 &
+            bootstrap_pid=$!
+            # Wait until polkadot writes at least 1 MB to the DB (genesis WASM +
+            # initial state are always several MB) or until the process exits.
+            # 1024-byte threshold is insufficient because mkdir-p pre-creates the
+            # directory which already has 4096 bytes of metadata.
+            local min_bytes=1048576
+            for _ in $(seq 1 90); do
+              if [[ -d "$output_path" ]]; then
+                db_bytes=$(du -sb "$output_path" 2>/dev/null | cut -f1 || echo 0)
+                if (( db_bytes > min_bytes )); then
+                  break
+                fi
+              fi
+              if ! kill -0 "$bootstrap_pid" 2>/dev/null; then
+                break
+              fi
+              sleep 2
+            done
+            kill "$bootstrap_pid" 2>/dev/null || true
+            wait "$bootstrap_pid" 2>/dev/null || true
+            [[ -d "$output_path" ]] || {
+              echo "Seed DB bootstrap produced no directory: $output_path" >&2
+              [[ -f "$log_path" ]] && tail -20 "$log_path" >&2
+              return 1
+            }
+            db_bytes=$(du -sb "$output_path" 2>/dev/null | cut -f1 || echo 0)
+            (( db_bytes > min_bytes )) || {
+              echo "Seed DB too small after bootstrap: ${db_bytes} bytes (need >${min_bytes}) at $output_path" >&2
+              [[ -f "$log_path" ]] && tail -20 "$log_path" >&2
+              return 1
+            }
+            printf '%s\n' "$output_path"
+          }
+
+          RUN_ROOT="${RUNNER_TEMP}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}"
+          RELAY_JSON="${RUN_ROOT}/artifacts/forked-thxnet-testnet-w8.json"
+          WORKSPACE_POLKADOT="$GITHUB_WORKSPACE/target/release/polkadot"
+          WORKSPACE_LEAFCHAIN="$GITHUB_WORKSPACE/target/release/thxnet-leafchain"
+          WORKSPACE_PARA_SPEC="$RUN_ROOT/para-specs/${{ github.event.inputs.para_chain_id || 'sand_testnet' }}.raw.json"
+          BOOTSTRAP_SEED_DB="$RUN_ROOT/seed-db"
+          BOOTSTRAP_SEED_DB_LOG="$RUN_ROOT/logs/seed-db-bootstrap.log"
+          LEAFCHAIN_IMAGE="${{ github.event.inputs.leafchain_image || 'ghcr.io/thxnet/leafchain:feature-fork-genesis' }}"
+          GENESIS_IMAGE="${{ github.event.inputs.genesis_image || 'ghcr.io/thxnet/leafchain-genesis:feature-fork-genesis' }}"
+          VERIFICATION_BUNDLE_REF="${{ github.event.inputs.verification_bundle_ref || '' }}"
+          VERIFICATION_SCENARIO_ID="${{ github.event.inputs.verification_scenario_id || '' }}"
+          LEAFCHAIN_BINARY_REF_INPUT="${{ github.event.inputs.leafchain_binary_ref || '' }}"
+
+          {
+            echo "VERIFY_CROSS_CHAIN_RUN_ROOT=$RUN_ROOT"
+            echo "VERIFY_CROSS_CHAIN_RELAY_JSON=$RELAY_JSON"
+            echo "VERIFY_CROSS_CHAIN_LEAFCHAIN_IMAGE=$LEAFCHAIN_IMAGE"
+            echo "VERIFY_CROSS_CHAIN_GENESIS_IMAGE=$GENESIS_IMAGE"
+            echo "VERIFY_CROSS_CHAIN_VERIFICATION_BUNDLE_REF=$VERIFICATION_BUNDLE_REF"
+            echo "VERIFY_CROSS_CHAIN_VERIFICATION_SCENARIO_ID=$VERIFICATION_SCENARIO_ID"
+          } >> "$GITHUB_ENV"
+
+          if ! POLKADOT_BIN="$(pick_existing executable 'relay binary' \
+            '${{ github.event.inputs.polkadot_bin }}' \
+            "$WORKSPACE_POLKADOT" \
+            '/root/Works/rootchain/target/release/polkadot')"; then
+            POLKADOT_BIN="$(build_workspace_polkadot "$WORKSPACE_POLKADOT")"
+          fi
+
+          LEAFCHAIN_BIN=""
+          PARA_JSON=""
+          VERIFICATION_BUNDLE_MANIFEST=""
+          if [[ -n "$VERIFICATION_BUNDLE_REF" ]]; then
+            BUNDLE_OUTPUT_DIR="$RUN_ROOT/verification-bundle"
+            mkdir -p "$BUNDLE_OUTPUT_DIR"
+            bundle_cmd=(
+              bash scripts/fork-genesis/materialize-verification-bundle.sh
+              "--bundle-ref=$VERIFICATION_BUNDLE_REF"
+              "--output-dir=$BUNDLE_OUTPUT_DIR"
+              "--expected-relay-chain=${{ github.event.inputs.relay_chain || 'thxnet-testnet' }}"
+              "--expected-para-id=${{ github.event.inputs.register_para_id || '1003' }}"
+              "--expected-para-chain-id=${{ github.event.inputs.para_chain_id || 'sand_testnet' }}"
+            )
+            [[ -n "$VERIFICATION_SCENARIO_ID" ]] && bundle_cmd+=("--expected-scenario-id=$VERIFICATION_SCENARIO_ID")
+            [[ -n "$LEAFCHAIN_BINARY_REF_INPUT" ]] && bundle_cmd+=("--leafchain-binary-ref=$LEAFCHAIN_BINARY_REF_INPUT")
+            BUNDLE_ENV_PATH="$RUN_ROOT/verification-bundle/materialized.env"
+            "${bundle_cmd[@]}" > "$BUNDLE_ENV_PATH"
+            set -a
+            source "$BUNDLE_ENV_PATH"
+            set +a
+            PARA_JSON="$VERIFY_BUNDLE_PARA_JSON"
+            VERIFICATION_BUNDLE_MANIFEST="$VERIFY_BUNDLE_MANIFEST"
+            if [[ -n "$VERIFY_BUNDLE_LEAFCHAIN_BIN" ]]; then
+              LEAFCHAIN_BIN="$VERIFY_BUNDLE_LEAFCHAIN_BIN"
+            fi
+          fi
+
+          if [[ -z "$LEAFCHAIN_BIN" ]]; then
+            if ! LEAFCHAIN_BIN="$(pick_existing executable 'leafchain binary' \
+              '${{ github.event.inputs.leafchain_bin }}' \
+              "$WORKSPACE_LEAFCHAIN" \
+              '/runner-assets/leafchains/thxnet-leafchain' \
+              '/root/Works/leafchains/target/release/thxnet-leafchain')"; then
+              LEAFCHAIN_BIN="$(materialize_leafchain_from_image "$WORKSPACE_LEAFCHAIN" "$LEAFCHAIN_IMAGE")"
+            fi
+          fi
+          if [[ -z "$PARA_JSON" ]]; then
+            if candidate_para_json="$(pick_existing file 'parachain spec JSON' \
+              '${{ github.event.inputs.para_json }}' \
+              '/runner-assets/specs/w6-t3-verify.json' \
+              '/tmp/w6-t3-verify.json')"; then
+              candidate_para_json_bytes=$(wc -c < "$candidate_para_json")
+              if (( candidate_para_json_bytes >= 10000000 )); then
+                PARA_JSON="$candidate_para_json"
+              else
+                echo "Ignoring undersized pre-provisioned para spec (${candidate_para_json_bytes} bytes): $candidate_para_json" >&2
+              fi
+            fi
+          fi
+          if [[ -z "$PARA_JSON" ]]; then
+            if ! PARA_JSON="$(materialize_bundled_para_json "$WORKSPACE_PARA_SPEC")"; then
+              PARA_JSON="$(materialize_para_json_from_image \
+                "$WORKSPACE_PARA_SPEC" \
+                "$GENESIS_IMAGE" \
+                "${{ github.event.inputs.para_chain_id || 'sand_testnet' }}")"
+            fi
+          fi
+          if ! SEED_DB="$(pick_existing directory 'rootchain seed DB' \
+            '${{ github.event.inputs.seed_db }}' \
+            '/runner-assets/rootchain-seed' \
+            '/data/forknet-test/rootchain-seed')"; then
+            SEED_DB="$(bootstrap_seed_db_from_genesis \
+              "$BOOTSTRAP_SEED_DB" \
+              "$POLKADOT_BIN" \
+              "${{ github.event.inputs.relay_chain || 'thxnet-testnet' }}" \
+              "$BOOTSTRAP_SEED_DB_LOG")"
+          fi
+
+          para_json_bytes=$(wc -c < "$PARA_JSON")
+          if (( para_json_bytes < 10000000 )); then
+            echo "Parachain spec is too small (${para_json_bytes} bytes): expected a full W6 fork-genesis export, not a minimal raw build-spec" >&2
+            exit 1
+          fi
+
+          if command -v lsof >/dev/null 2>&1 || \
+             command -v fuser >/dev/null 2>&1 || \
+             command -v ss >/dev/null 2>&1; then
+            :
+          elif command -v python3 >/dev/null 2>&1 && [[ -r /proc/net/tcp || -r /proc/net/tcp6 ]]; then
+            echo "No external port-inspection tool found; verify-cross-chain.sh will use python3 + /proc fallback" >&2
+          else
+            echo "Missing port-inspection capability; expected one of lsof, fuser, ss, or python3 with /proc access" >&2
+            exit 1
+          fi
+          mkdir -p "$RUN_ROOT/artifacts"
+
+          {
+            echo "VERIFY_CROSS_CHAIN_POLKADOT_BIN=$POLKADOT_BIN"
+            echo "VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN=$LEAFCHAIN_BIN"
+            echo "VERIFY_CROSS_CHAIN_PARA_JSON=$PARA_JSON"
+            echo "VERIFY_CROSS_CHAIN_SEED_DB=$SEED_DB"
+            echo "VERIFY_CROSS_CHAIN_VERIFICATION_BUNDLE_MANIFEST=$VERIFICATION_BUNDLE_MANIFEST"
+          } >> "$GITHUB_ENV"
+
+          echo "Using relay binary: $POLKADOT_BIN"
+          echo "Using leafchain binary: $LEAFCHAIN_BIN"
+          if [[ -n "$VERIFICATION_BUNDLE_MANIFEST" ]]; then
+            echo "Using verification bundle manifest: $VERIFICATION_BUNDLE_MANIFEST"
+          fi
+          echo "Using para spec: $PARA_JSON"
+          echo "Using seed DB: $SEED_DB"
+
+      - name: Run verify-cross-chain.sh
+        shell: bash
+        run: |
+          set -euo pipefail
+          export VERIFY_CROSS_CHAIN_POLKADOT_BIN="$VERIFY_CROSS_CHAIN_POLKADOT_BIN"
+          export VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN="$VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN"
+          export VERIFY_CROSS_CHAIN_PARA_JSON="$VERIFY_CROSS_CHAIN_PARA_JSON"
+          export VERIFY_CROSS_CHAIN_SEED_DB="$VERIFY_CROSS_CHAIN_SEED_DB"
+          export VERIFY_CROSS_CHAIN_REGISTER_PARA_ID="${{ github.event.inputs.register_para_id || '1003' }}"
+          export VERIFY_CROSS_CHAIN_RELAY_CHAIN="${{ github.event.inputs.relay_chain || 'thxnet-testnet' }}"
+          export VERIFY_CROSS_CHAIN_PARA_CHAIN_ID="${{ github.event.inputs.para_chain_id || 'sand_testnet' }}"
+          bash scripts/fork-genesis/verify-cross-chain.sh \
+            --burn-in-seconds="${{ github.event.inputs.burn_in_seconds || '300' }}" \
+            --run-root="$VERIFY_CROSS_CHAIN_RUN_ROOT"
+
+      - name: Upload cross-chain verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fork-genesis-cross-chain-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            ${{ env.VERIFY_CROSS_CHAIN_RUN_ROOT }}/logs/**
+            ${{ env.VERIFY_CROSS_CHAIN_RUN_ROOT }}/pids/**
+            ${{ env.VERIFY_CROSS_CHAIN_RUN_ROOT }}/verification-bundle/**
+            ${{ env.VERIFY_CROSS_CHAIN_RELAY_JSON }}
+
+      - name: Append summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ROOT="${VERIFY_CROSS_CHAIN_RUN_ROOT:-${RUNNER_TEMP}/verify-cross-chain-${{ github.run_id }}-${{ github.run_attempt }}}"
+          LOG_DIR="$RUN_ROOT/logs"
+          {
+            echo "## verify-cross-chain.sh"
+            echo
+            echo "- Runner labels: \`self-hosted, LKE\`"
+            echo "- Relay binary: \`${VERIFY_CROSS_CHAIN_POLKADOT_BIN:-unresolved}\`"
+            echo "- Leafchain binary: \`${VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN:-unresolved}\`"
+            echo "- Verification bundle ref: \`${VERIFY_CROSS_CHAIN_VERIFICATION_BUNDLE_REF:-unresolved}\`"
+            echo "- Verification scenario id: \`${VERIFY_CROSS_CHAIN_VERIFICATION_SCENARIO_ID:-unresolved}\`"
+            echo "- Verification bundle manifest: \`${VERIFY_CROSS_CHAIN_VERIFICATION_BUNDLE_MANIFEST:-unresolved}\`"
+            echo "- Leafchain image fallback: \`${VERIFY_CROSS_CHAIN_LEAFCHAIN_IMAGE:-unresolved}\`"
+            echo "- Genesis image fallback: \`${VERIFY_CROSS_CHAIN_GENESIS_IMAGE:-unresolved}\`"
+            echo "- Para spec: \`${VERIFY_CROSS_CHAIN_PARA_JSON:-unresolved}\`"
+            echo "- Seed DB: \`${VERIFY_CROSS_CHAIN_SEED_DB:-unresolved}\`"
+            echo "- Run root: \`${RUN_ROOT}\`"
+            echo
+            if [[ -d "$LOG_DIR" ]]; then
+              echo "### Run-root log files"
+              find "$LOG_DIR" -maxdepth 1 -type f | sort | sed 's/^/- `/' | sed 's/$/`/'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

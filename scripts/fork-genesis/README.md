@@ -82,6 +82,17 @@ Shell diagnostic LABELs (emitted to stderr, NOT exit codes): `FORK_JSON_FAIL`, `
 
 ---
 
+### Long-term producer/consumer artifact contract
+
+The current repo-bundled W6 para spec is an operational stopgap, not the final
+mechanism. The intended long-term boundary between `leafchains` (producer) and
+`rootchain` (consumer) is documented in
+[`ARTIFACT-CONTRACT.md`](./ARTIFACT-CONTRACT.md).
+
+In short: rootchain should eventually consume a **scenario-specific verification
+bundle** published by leafchains (binary + full para fixture + manifest), rather
+than assuming any generic raw spec or runner-local host path is equivalent.
+
 ## Cross-chain verification (relay + parachain)
 
 `verify-cross-chain.sh` boots a 3-validator relay + 3-collator para chain
@@ -90,17 +101,76 @@ end-to-end. It calls `fork-genesis` itself to regenerate the relay spec at start
 
 ### Prerequisites
 
+By default the script expects:
+
 - Para spec at `/tmp/w6-t3-verify.json`
   (produced by leafchain `fork-genesis` — W6)
 - Both binaries: `target/release/polkadot` and
   `../leafchains/target/release/thxnet-leafchain`
 - Read-only seed DB at `/data/forknet-test/rootchain-seed/`
 
+For CI / GitHub Actions these paths are now overrideable via CLI flags or
+`VERIFY_CROSS_CHAIN_*` environment variables, so the runner does **not** need
+those exact hardcoded paths as long as equivalent inputs are provided.
+
+The workflow wrapper in `.github/workflows/fork-genesis-cross-chain.yaml`
+will also materialize `thxnet-leafchain` into the workspace automatically if no
+local runner path exists, by pulling a published OCI image
+(`ghcr.io/thxnet/leafchain:feature-fork-genesis` by default) and copying
+`/usr/local/bin/thxnet-leafchain` out of it. Operators can override that image
+per dispatch via the `leafchain_image` input.
+
+### Preferred long-term contract path
+
+The preferred migration path is now a **scenario-specific verification bundle**:
+
+- `verification_bundle_ref` — local directory or OCI artifact/image containing
+  `manifest.json`, `para-spec.raw.json`, `validation-code.wasm`, and
+  `genesis-state.bin`
+- `verification_scenario_id` — optional expected `scenario_id` guard for the
+  manifest
+- `leafchain_binary_ref` — optional override if the workflow should ignore the
+  manifest's binary image ref
+
+The workflow materializes that bundle through
+`scripts/fork-genesis/materialize-verification-bundle.sh`, validates manifest
+identity + checksums before boot, and only falls back to loose compatibility
+inputs (`leafchain_bin`, `leafchain_image`, `genesis_image`, `para_json`) when
+no bundle ref is supplied.
+
 ### Run
 
 ```bash
 bash scripts/fork-genesis/verify-cross-chain.sh
 ```
+
+The script is now **GitHub Actions ready**:
+
+- all formerly hardcoded binary/spec/seed paths can be overridden by CLI flags
+  or `VERIFY_CROSS_CHAIN_*` environment variables
+- node state, pid files, and logs can be relocated with `--run-root=PATH`
+- the default run root becomes runner-local when `RUNNER_TEMP` / `GITHUB_RUN_ID`
+  are present, so CI does not need `/tmp/xcv-*` collisions or `/root/Works/...`
+  assumptions
+- a manual workflow wrapper lives at
+  `.github/workflows/fork-genesis-cross-chain.yaml`
+
+Example CI-friendly invocation when the runner already has the binary:
+
+```bash
+export VERIFY_CROSS_CHAIN_POLKADOT_BIN="$GITHUB_WORKSPACE/target/release/polkadot"
+export VERIFY_CROSS_CHAIN_LEAFCHAIN_BIN="/runner-assets/leafchains/thxnet-leafchain"
+export VERIFY_CROSS_CHAIN_PARA_JSON="/runner-assets/specs/w6-t3-verify.json"
+export VERIFY_CROSS_CHAIN_SEED_DB="/runner-assets/rootchain-seed"
+export VERIFY_CROSS_CHAIN_RUN_ROOT="$RUNNER_TEMP/verify-cross-chain-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+
+bash scripts/fork-genesis/verify-cross-chain.sh --burn-in-seconds=300
+```
+
+If the runner does **not** have `thxnet-leafchain`, dispatch the workflow without
+`leafchain_bin`; it will pull the default `ghcr.io/thxnet/leafchain:feature-fork-genesis`
+image (or your overridden `leafchain_image`) and copy the binary into
+`$GITHUB_WORKSPACE/target/release/thxnet-leafchain` before running the script.
 
 This:
 

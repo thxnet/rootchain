@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# verify-rootchain.sh — Boot 3-validator local network from forked chain spec
+# verify-rootchain.sh — Boot 2-validator local network from forked chain spec
 # and verify liveness (Imported #1, first Finalized, block >= 50).
 #
-# Topology: Alice (bootnode) / Bob / Charlie
-# Ports:    p2p 40331-40333 | RPC 9931-9933
+# Topology: Alice (bootnode) / Bob
+# Ports:    p2p 40331-40332 | RPC 9931-9932
 #
 # Alice uses fixed --node-key so her peer ID is always predictable:
 #   Key:     0000000000000000000000000000000000000000000000000000000000000001
@@ -31,8 +31,7 @@ POLKADOT="/root/Works/rootchain/target/release/polkadot"
 FORKED_JSON="/tmp/forked-thxnet-testnet.json"
 LOG_ALICE="/tmp/forknet-test-alice.log"
 LOG_BOB="/tmp/forknet-test-bob.log"
-LOG_CHARLIE="/tmp/forknet-test-charlie.log"
-ALL_LOGS=("$LOG_ALICE" "$LOG_BOB" "$LOG_CHARLIE")
+ALL_LOGS=("$LOG_ALICE" "$LOG_BOB")
 
 ALICE_NODE_KEY="0000000000000000000000000000000000000000000000000000000000000001"
 ALICE_PEER_ID="12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp"
@@ -41,7 +40,7 @@ ALICE_BOOTNODE="/ip4/127.0.0.1/tcp/40331/p2p/${ALICE_PEER_ID}"
 # Base paths (per-node, in /tmp so we don't touch /data/)
 BASE_ALICE="/tmp/forknet-test-base-alice"
 BASE_BOB="/tmp/forknet-test-base-bob"
-BASE_CHARLIE="/tmp/forknet-test-base-charlie"
+
 
 # DB source (READ-ONLY) for fork-genesis
 SEED_BASE_PATH="/data/forknet-test/rootchain-seed"
@@ -56,7 +55,7 @@ POLL_INTERVAL=2           # polling interval in seconds
 # PIDs (populated below)
 ALICE_PID=""
 BOB_PID=""
-CHARLIE_PID=""
+
 
 # ─── Flags ───────────────────────────────────────────────────────────────────
 KEEP_RUNNING=false   # default OFF — script self-cleans after every run
@@ -86,7 +85,7 @@ die() {
 cleanup_prior_runs() {
     info "Killing any prior polkadot processes on our ports..."
     # Kill by port ownership
-    for port in 40331 40332 40333 9931 9932 9933; do
+    for port in 40331 40332 9931 9932; do
         local pid
         pid=$(lsof -ti "tcp:${port}" 2>/dev/null || true)
         if [[ -n "$pid" ]]; then
@@ -106,19 +105,19 @@ cleanup_prior_runs() {
         rm -f "$pidf"
     done
     # Clear old logs
-    rm -f /tmp/forknet-test-alice.log /tmp/forknet-test-bob.log /tmp/forknet-test-charlie.log
+    rm -f /tmp/forknet-test-alice.log /tmp/forknet-test-bob.log
     # Clear old base paths so we start fresh (avoids keystore/DB conflicts)
-    rm -rf "$BASE_ALICE" "$BASE_BOB" "$BASE_CHARLIE"
+    rm -rf "$BASE_ALICE" "$BASE_BOB"
     info "Prior-run cleanup complete."
 }
 
 do_cleanup_on_exit() {
     if [[ "$KEEP_RUNNING" == "true" ]]; then
-        info "Validators left running (--keep-running). PIDs: Alice=${ALICE_PID} Bob=${BOB_PID} Charlie=${CHARLIE_PID}"
+        info "Validators left running (--keep-running). PIDs: Alice=${ALICE_PID} Bob=${BOB_PID}"
         return
     fi
     info "Stopping validators..."
-    for pid in "$ALICE_PID" "$BOB_PID" "$CHARLIE_PID"; do
+    for pid in "$ALICE_PID" "$BOB_PID"; do
         [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
     done
 }
@@ -214,7 +213,7 @@ fi
 info "Alice peer ID confirmed (from fixed node-key): $ALICE_PEER_ID"
 info "Bootnode multiaddr: $ALICE_BOOTNODE"
 
-# ─── Step 4: Boot Bob and Charlie ────────────────────────────────────────────
+# ─── Step 4: Boot Bob ────────────────────────────────────────────────────────
 info "=== Step 4: Starting Bob ==="
 mkdir -p "$BASE_BOB"
 "$POLKADOT" \
@@ -230,22 +229,7 @@ BOB_PID=$!
 echo "$BOB_PID" > /tmp/forknet-test-bob.pid
 info "Bob started (PID=$BOB_PID)"
 
-info "=== Step 4b: Starting Charlie ==="
-mkdir -p "$BASE_CHARLIE"
-"$POLKADOT" \
-    "${COMMON_FLAGS[@]}" \
-    --charlie \
-    --base-path="$BASE_CHARLIE" \
-    --port=40333 \
-    --rpc-port=9933 \
-    --bootnodes="$ALICE_BOOTNODE" \
-    --log=info \
-    > "$LOG_CHARLIE" 2>&1 &
-CHARLIE_PID=$!
-echo "$CHARLIE_PID" > /tmp/forknet-test-charlie.pid
-info "Charlie started (PID=$CHARLIE_PID)"
-
-info "All 3 validators up. Alice=$ALICE_PID Bob=$BOB_PID Charlie=$CHARLIE_PID"
+info "All 2 validators up. Alice=$ALICE_PID Bob=$BOB_PID"
 
 # ─── Step 5: Poll for Imported #1 ────────────────────────────────────────────
 info "=== Step 5: Waiting for first block import (timeout=${FIRST_IMPORT_TIMEOUT}s) ==="
@@ -257,8 +241,8 @@ while (( $(date +%s) < DEADLINE )); do
         info "PASS: 'Imported #1' detected in Alice log"
         break
     fi
-    # Also check Bob/Charlie logs
-    for log in "$LOG_BOB" "$LOG_CHARLIE"; do
+    # Also check Bob log
+    for log in "$LOG_BOB"; do
         if grep -qE 'Imported #[1-9]' "$log" 2>/dev/null; then
             FIRST_IMPORT_SEEN=true
             info "PASS: 'Imported #1' detected in $(basename $log)"
@@ -377,9 +361,9 @@ info "=== Final Status Report ==="
 info "Forked chain spec : $FORKED_JSON (${FORK_SIZE} bytes)"
 info "Alice PID         : $ALICE_PID (alive: $(kill -0 "$ALICE_PID" 2>/dev/null && echo YES || echo NO))"
 info "Bob   PID         : $BOB_PID (alive: $(kill -0 "$BOB_PID" 2>/dev/null && echo YES || echo NO))"
-info "Charlie PID       : $CHARLIE_PID (alive: $(kill -0 "$CHARLIE_PID" 2>/dev/null && echo YES || echo NO))"
+info "Validator count   : 2"
 info "Highest finalized : block $HIGHEST_FINALIZED"
-info "Logs              : $LOG_ALICE | $LOG_BOB | $LOG_CHARLIE"
+info "Logs              : $LOG_ALICE | $LOG_BOB"
 info ""
 info "=== LIVENESS VERIFICATION: PASS ==="
 info ""

@@ -207,6 +207,23 @@ REGISTER_FLAGS=(
 )
 ```
 
+For the long-term producer/consumer boundary, do not treat an arbitrary leafchain
+raw spec as automatically equivalent to a scenario fixture. See
+[`ARTIFACT-CONTRACT.md`](./ARTIFACT-CONTRACT.md) for the intended contract:
+leafchains should publish **scenario-specific verification bundles**, and
+rootchain should consume those bundles via a manifest-validated interface.
+
+Current implementation surface in rootchain:
+
+- workflow input `verification_bundle_ref` prefers a bundle over loose inputs
+- workflow input `verification_scenario_id` can fail closed on scenario mismatch
+- workflow input `leafchain_binary_ref` can override the manifest binary ref
+- `scripts/fork-genesis/materialize-verification-bundle.sh` validates the
+  manifest, verifies checksums, and materializes bundle payloads before launch
+
+The existing bundled W6 spec remains an emergency fallback only; it should not be
+considered the primary mechanism once the external bundle path is proven.
+
 **Important caveat**: with N parachains and only M=3 validators, scheduler
 forms `[[0],[1],[2],[],...]`-style groups — empty groups can't back any
 candidate, so backing for some paras stalls during group rotation
